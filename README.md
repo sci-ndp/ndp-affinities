@@ -128,6 +128,18 @@ Junction table connecting datasets with endpoints (many-to-many).
 | `attrs` | JSONB | |
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
 
+### ndp_dataset_service
+
+Junction table connecting datasets with services (many-to-many).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `dataset_uid` | UUID | PK, FK → ndp_dataset |
+| `service_uid` | UUID | PK, FK → ndp_service |
+| `role` | TEXT | |
+| `attrs` | JSONB | |
+| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
+
 ## Project Structure
 
 ```
@@ -141,5 +153,6 @@ Junction table connecting datasets with endpoints (many-to-many).
         ├── 001_create_ndp_endpoint.sql
         ├── 002_create_ndp_dataset.sql
         ├── 003_create_ndp_service.sql
-        └── 004_create_ndp_dataset_endpoint.sql
+        ├── 004_create_ndp_dataset_endpoint.sql
+        └── 005_create_ndp_dataset_service.sql
 ```
