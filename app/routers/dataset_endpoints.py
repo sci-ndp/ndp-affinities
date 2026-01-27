@@ -4,10 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.dataset import Dataset
 from app.models.dataset_endpoint import DatasetEndpoint
+from app.models.endpoint import Endpoint
 from app.schemas.dataset_endpoint import DatasetEndpointCreate, DatasetEndpointResponse
 
 router = APIRouter(prefix="/dataset-endpoints", tags=["dataset-endpoints"])
+
+
+def validate_references(db: Session, dataset_uid: UUID, endpoint_uid: UUID):
+    if not db.query(Dataset).filter(Dataset.uid == dataset_uid).first():
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_uid}' not found")
+    if not db.query(Endpoint).filter(Endpoint.uid == endpoint_uid).first():
+        raise HTTPException(status_code=404, detail=f"Endpoint '{endpoint_uid}' not found")
 
 
 @router.get("", response_model=list[DatasetEndpointResponse])
@@ -28,6 +37,7 @@ def get_dataset_endpoint(dataset_uid: UUID, endpoint_uid: UUID, db: Session = De
 
 @router.post("", response_model=DatasetEndpointResponse, status_code=201)
 def create_dataset_endpoint(data: DatasetEndpointCreate, db: Session = Depends(get_db)):
+    validate_references(db, data.dataset_uid, data.endpoint_uid)
     item = DatasetEndpoint(
         dataset_uid=data.dataset_uid,
         endpoint_uid=data.endpoint_uid,

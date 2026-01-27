@@ -52,3 +52,27 @@ def test_delete_service_endpoint(client):
 def test_delete_service_endpoint_not_found(client):
     response = client.delete("/service-endpoints/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000001")
     assert response.status_code == 404
+
+
+def test_create_service_endpoint_nonexistent_service(client):
+    endpoint = client.post("/ep", json={"kind": "http"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/service-endpoints", json={
+        "service_uid": fake_uid,
+        "endpoint_uid": endpoint["uid"]
+    })
+    assert response.status_code == 404
+    assert "Service" in response.json()["detail"]
+
+
+def test_create_service_endpoint_nonexistent_endpoint(client):
+    service = client.post("/services", json={"type": "compute"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/service-endpoints", json={
+        "service_uid": service["uid"],
+        "endpoint_uid": fake_uid
+    })
+    assert response.status_code == 404
+    assert "Endpoint" in response.json()["detail"]

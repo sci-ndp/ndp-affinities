@@ -76,3 +76,23 @@ def test_create_affinity_with_attrs(client):
     assert response.status_code == 201
     data = response.json()
     assert data["attrs"] == {"quality": "high", "priority": 1}
+
+
+def test_create_affinity_nonexistent_dataset(client):
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+    response = client.post("/affinities", json={
+        "dataset_uid": fake_uid,
+        "version": 1
+    })
+    assert response.status_code == 404
+    assert fake_uid in response.json()["detail"]
+
+
+def test_update_affinity_nonexistent_dataset(client):
+    create_response = client.post("/affinities", json={"version": 1})
+    triple_uid = create_response.json()["triple_uid"]
+
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+    response = client.put(f"/affinities/{triple_uid}", json={"dataset_uid": fake_uid})
+    assert response.status_code == 404
+    assert fake_uid in response.json()["detail"]
