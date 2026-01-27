@@ -152,6 +152,21 @@ Junction table connecting services with endpoints (many-to-many).
 | `attrs` | JSONB | |
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
 
+### ndp_affinity_triple
+
+Stores affinity combinations (dataset + endpoints + services).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `triple_uid` | UUID | PK, auto-generated |
+| `dataset_uid` | UUID | FK → ndp_dataset |
+| `endpoint_uids` | UUID[] | array |
+| `service_uids` | UUID[] | array |
+| `attrs` | JSONB | |
+| `version` | INT | |
+| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
+
 ## Project Structure
 
 ```
@@ -167,5 +182,6 @@ Junction table connecting services with endpoints (many-to-many).
         ├── 003_create_ndp_service.sql
         ├── 004_create_ndp_dataset_endpoint.sql
         ├── 005_create_ndp_dataset_service.sql
-        └── 006_create_ndp_service_endpoint.sql
+        ├── 006_create_ndp_service_endpoint.sql
+        └── 007_create_ndp_affinity_triple.sql
 ```
