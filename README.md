@@ -88,6 +88,19 @@ Stores endpoint information.
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
 
+### ndp_dataset
+
+Stores dataset information.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `uid` | UUID | PK, auto-generated |
+| `title` | TEXT | |
+| `source_ep` | TEXT | |
+| `metadata` | JSONB | |
+| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
+
 ## Project Structure
 
 ```
@@ -98,5 +111,6 @@ Stores endpoint information.
 │   └── servers.json      # pgAdmin server configuration
 └── sql/
     └── migrations/       # Database migrations (run automatically)
-        └── 001_create_ndp_endpoint.sql
+        ├── 001_create_ndp_endpoint.sql
+        └── 002_create_ndp_dataset.sql
 ```
