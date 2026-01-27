@@ -1,6 +1,6 @@
 # NDP Affinities
 
-PostgreSQL database for the NDP Affinities system.
+PostgreSQL database with FastAPI backend and React frontend for the NDP Affinities system.
 
 ## Requirements
 
@@ -17,6 +17,7 @@ This will start:
 - **PostgreSQL** on `localhost:5432`
 - **pgAdmin** on `http://localhost:5050`
 - **API** on `http://localhost:8000` (Swagger UI at `/docs`)
+- **Frontend** on `http://localhost:3000`
 
 Migrations run automatically on first startup.
 
@@ -51,13 +52,50 @@ cp .env.example .env
 |----------|---------|-------------|
 | `DATABASE_URL` | `postgresql://affinities:affinities@localhost:5432/affinities` | Database connection string |
 | `API_PORT` | `8000` | Exposed port |
+| `CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated, or `*` for all) |
+
+### Frontend
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FRONTEND_PORT` | `3000` | Exposed port |
+| `VITE_API_URL` | `http://localhost:8000` | API URL (used at build time) |
+
+## Production Deployment
+
+For production, use `docker-compose.prod.yml` which excludes pgAdmin and requires explicit configuration:
+
+```bash
+# Create .env with production values (change passwords!)
+cp .env.example .env
+# Edit .env with secure passwords and proper CORS_ORIGINS
+
+# Start production services
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Production configuration notes:
+- Set strong passwords for `POSTGRES_USER` and `POSTGRES_PASSWORD`
+- Set `CORS_ORIGINS` to your frontend domain (e.g., `https://yourdomain.com`)
+- Set `VITE_API_URL` to your API URL (e.g., `https://api.yourdomain.com`)
+- Configure a reverse proxy (nginx, traefik) for HTTPS
 
 ## Local Development
+
+### API
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 .venv/bin/uvicorn app.main:app --reload
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
 ## Running Tests
@@ -78,8 +116,11 @@ python3 -m venv .venv
 ## Commands
 
 ```bash
-# Start services
+# Start services (development)
 docker compose up -d
+
+# Start services (production)
+docker compose -f docker-compose.prod.yml up -d
 
 # Stop services
 docker compose down
@@ -193,11 +234,12 @@ Stores affinity combinations (dataset + endpoints + services).
 
 ```
 .
-├── docker-compose.yml
-├── Dockerfile
+├── docker-compose.yml        # Development setup
+├── docker-compose.prod.yml   # Production setup (no pgAdmin)
+├── Dockerfile                # API container
 ├── requirements.txt
 ├── .env.example
-├── app/                  # FastAPI application
+├── app/                      # FastAPI application
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
@@ -205,7 +247,16 @@ Stores affinity combinations (dataset + endpoints + services).
 │   ├── models/
 │   ├── schemas/
 │   └── routers/
-├── tests/                # Test suite
+├── frontend/                 # React frontend
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── types/
+│   └── ...
+├── tests/                    # Test suite
 ├── pgadmin/
 │   └── servers.json
 └── sql/
