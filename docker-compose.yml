@@ -28,6 +28,17 @@ services:
       - postgres
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: ndp-affinities-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-affinities}:${POSTGRES_PASSWORD:-affinities}@postgres:5432/${POSTGRES_DB:-affinities}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   pgadmin_data:
