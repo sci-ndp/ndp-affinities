@@ -60,6 +60,12 @@ python3 -m venv .venv
 .venv/bin/uvicorn app.main:app --reload
 ```
 
+## Running Tests
+
+```bash
+.venv/bin/pytest --cov=app --cov-report=term-missing
+```
+
 ## Accessing pgAdmin
 
 1. Open http://localhost:5050
@@ -195,9 +201,11 @@ Stores affinity combinations (dataset + endpoints + services).
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
+│   ├── types.py
 │   ├── models/
 │   ├── schemas/
 │   └── routers/
+├── tests/                # Test suite
 ├── pgadmin/
 │   └── servers.json
 └── sql/
