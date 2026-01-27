@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { datasetEndpointsApi, datasetsApi, endpointsApi } from '../api/client';
-import type { DatasetEndpoint, Dataset, Endpoint } from '../types';
+import type { DatasetEndpoint, DatasetEndpointCreate, Dataset, Endpoint } from '../types';
 
 export function DatasetEndpoints() {
   const [relations, setRelations] = useState<DatasetEndpoint[]>([]);
@@ -9,10 +9,9 @@ export function DatasetEndpoints() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<DatasetEndpoint>({
+  const [formData, setFormData] = useState<DatasetEndpointCreate>({
     dataset_uid: '',
-    endpoint_uid: '',
-    role: ''
+    endpoint_uid: ''
   });
 
   const fetchData = async () => {
@@ -44,7 +43,7 @@ export function DatasetEndpoints() {
     try {
       await datasetEndpointsApi.create(formData);
       setShowForm(false);
-      setFormData({ dataset_uid: '', endpoint_uid: '', role: '' });
+      setFormData({ dataset_uid: '', endpoint_uid: '' });
       fetchData();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -66,17 +65,17 @@ export function DatasetEndpoints() {
 
   const handleCancel = () => {
     setShowForm(false);
-    setFormData({ dataset_uid: '', endpoint_uid: '', role: '' });
+    setFormData({ dataset_uid: '', endpoint_uid: '' });
   };
 
   const getDatasetTitle = (uid: string) => {
     const ds = datasets.find(d => d.uid === uid);
-    return ds ? ds.title : uid;
+    return ds?.title || uid;
   };
 
   const getEndpointKind = (uid: string) => {
     const ep = endpoints.find(e => e.uid === uid);
-    return ep ? ep.kind : uid;
+    return ep?.kind || uid;
   };
 
   if (loading) return <div>Loading...</div>;
@@ -98,7 +97,7 @@ export function DatasetEndpoints() {
             <h2>New Dataset-Endpoint Relationship</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Dataset:</label>
+                <label>Dataset: *</label>
                 <select
                   value={formData.dataset_uid}
                   onChange={(e) => setFormData({ ...formData, dataset_uid: e.target.value })}
@@ -106,12 +105,12 @@ export function DatasetEndpoints() {
                 >
                   <option value="">Select a dataset</option>
                   {datasets.map((ds) => (
-                    <option key={ds.uid} value={ds.uid}>{ds.title}</option>
+                    <option key={ds.uid} value={ds.uid}>{ds.title || ds.uid}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label>Endpoint:</label>
+                <label>Endpoint: *</label>
                 <select
                   value={formData.endpoint_uid}
                   onChange={(e) => setFormData({ ...formData, endpoint_uid: e.target.value })}
@@ -124,11 +123,27 @@ export function DatasetEndpoints() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Role (optional):</label>
+                <label>Role:</label>
                 <input
                   type="text"
                   value={formData.role || ''}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Attributes (JSON):</label>
+                <textarea
+                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  onChange={(e) => {
+                    try {
+                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, attrs });
+                    } catch {
+                      // Invalid JSON, keep current value
+                    }
+                  }}
+                  rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -146,13 +161,14 @@ export function DatasetEndpoints() {
             <th>Dataset</th>
             <th>Endpoint</th>
             <th>Role</th>
+            <th>Attributes</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {relations.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No relationships found</td>
+              <td colSpan={5} className="empty">No relationships found</td>
             </tr>
           ) : (
             relations.map((rel) => (
@@ -160,6 +176,7 @@ export function DatasetEndpoints() {
                 <td>{getDatasetTitle(rel.dataset_uid)}</td>
                 <td>{getEndpointKind(rel.endpoint_uid)}</td>
                 <td>{rel.role || '-'}</td>
+                <td className="attrs">{rel.attrs ? JSON.stringify(rel.attrs) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleDelete(rel.dataset_uid, rel.endpoint_uid)} className="btn-delete">Delete</button>
                 </td>

@@ -8,7 +8,7 @@ export function Services() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [formData, setFormData] = useState<ServiceCreate>({ type: '' });
+  const [formData, setFormData] = useState<ServiceCreate>({});
 
   const fetchServices = async () => {
     try {
@@ -38,17 +38,24 @@ export function Services() {
       }
       setShowForm(false);
       setEditingService(null);
-      setFormData({ type: '' });
+      setFormData({});
       fetchServices();
-    } catch (err) {
-      setError('Failed to save service');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr.response?.data?.detail || 'Failed to save service');
       console.error(err);
     }
   };
 
   const handleEdit = (service: Service) => {
     setEditingService(service);
-    setFormData({ type: service.type, attrs: service.attrs });
+    setFormData({
+      type: service.type,
+      openapi_url: service.openapi_url,
+      version: service.version,
+      source_ep: service.source_ep,
+      metadata: service.metadata
+    });
     setShowForm(true);
   };
 
@@ -66,7 +73,7 @@ export function Services() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingService(null);
-    setFormData({ type: '' });
+    setFormData({});
   };
 
   if (loading) return <div>Loading...</div>;
@@ -91,24 +98,50 @@ export function Services() {
                 <label>Type:</label>
                 <input
                   type="text"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
+                  value={formData.type || ''}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value || undefined })}
                 />
               </div>
               <div className="form-group">
-                <label>Attributes (JSON):</label>
+                <label>OpenAPI URL:</label>
+                <input
+                  type="text"
+                  value={formData.openapi_url || ''}
+                  onChange={(e) => setFormData({ ...formData, openapi_url: e.target.value || undefined })}
+                  placeholder="https://example.com/openapi.json"
+                />
+              </div>
+              <div className="form-group">
+                <label>Version:</label>
+                <input
+                  type="text"
+                  value={formData.version || ''}
+                  onChange={(e) => setFormData({ ...formData, version: e.target.value || undefined })}
+                  placeholder="1.0.0"
+                />
+              </div>
+              <div className="form-group">
+                <label>Source Endpoint:</label>
+                <input
+                  type="text"
+                  value={formData.source_ep || ''}
+                  onChange={(e) => setFormData({ ...formData, source_ep: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
                   onChange={(e) => {
                     try {
-                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
-                      setFormData({ ...formData, attrs });
+                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, metadata });
                     } catch {
                       // Invalid JSON, keep current value
                     }
                   }}
                   rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -125,21 +158,27 @@ export function Services() {
           <tr>
             <th>UID</th>
             <th>Type</th>
-            <th>Attributes</th>
+            <th>Version</th>
+            <th>OpenAPI URL</th>
+            <th>Source EP</th>
+            <th>Metadata</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {services.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No services found</td>
+              <td colSpan={7} className="empty">No services found</td>
             </tr>
           ) : (
             services.map((service) => (
               <tr key={service.uid}>
                 <td className="uid">{service.uid}</td>
-                <td>{service.type}</td>
-                <td className="attrs">{service.attrs ? JSON.stringify(service.attrs) : '-'}</td>
+                <td>{service.type || '-'}</td>
+                <td>{service.version || '-'}</td>
+                <td>{service.openapi_url || '-'}</td>
+                <td>{service.source_ep || '-'}</td>
+                <td className="attrs">{service.metadata ? JSON.stringify(service.metadata) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleEdit(service)} className="btn-edit">Edit</button>
                   <button onClick={() => handleDelete(service.uid)} className="btn-delete">Delete</button>

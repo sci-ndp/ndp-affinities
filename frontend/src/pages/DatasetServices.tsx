@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { datasetServicesApi, datasetsApi, servicesApi } from '../api/client';
-import type { DatasetService, Dataset, Service } from '../types';
+import type { DatasetService, DatasetServiceCreate, Dataset, Service } from '../types';
 
 export function DatasetServices() {
   const [relations, setRelations] = useState<DatasetService[]>([]);
@@ -9,10 +9,9 @@ export function DatasetServices() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<DatasetService>({
+  const [formData, setFormData] = useState<DatasetServiceCreate>({
     dataset_uid: '',
-    service_uid: '',
-    role: ''
+    service_uid: ''
   });
 
   const fetchData = async () => {
@@ -44,7 +43,7 @@ export function DatasetServices() {
     try {
       await datasetServicesApi.create(formData);
       setShowForm(false);
-      setFormData({ dataset_uid: '', service_uid: '', role: '' });
+      setFormData({ dataset_uid: '', service_uid: '' });
       fetchData();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -66,17 +65,17 @@ export function DatasetServices() {
 
   const handleCancel = () => {
     setShowForm(false);
-    setFormData({ dataset_uid: '', service_uid: '', role: '' });
+    setFormData({ dataset_uid: '', service_uid: '' });
   };
 
   const getDatasetTitle = (uid: string) => {
     const ds = datasets.find(d => d.uid === uid);
-    return ds ? ds.title : uid;
+    return ds?.title || uid;
   };
 
   const getServiceType = (uid: string) => {
     const svc = services.find(s => s.uid === uid);
-    return svc ? svc.type : uid;
+    return svc?.type || uid;
   };
 
   if (loading) return <div>Loading...</div>;
@@ -98,7 +97,7 @@ export function DatasetServices() {
             <h2>New Dataset-Service Relationship</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Dataset:</label>
+                <label>Dataset: *</label>
                 <select
                   value={formData.dataset_uid}
                   onChange={(e) => setFormData({ ...formData, dataset_uid: e.target.value })}
@@ -106,12 +105,12 @@ export function DatasetServices() {
                 >
                   <option value="">Select a dataset</option>
                   {datasets.map((ds) => (
-                    <option key={ds.uid} value={ds.uid}>{ds.title}</option>
+                    <option key={ds.uid} value={ds.uid}>{ds.title || ds.uid}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label>Service:</label>
+                <label>Service: *</label>
                 <select
                   value={formData.service_uid}
                   onChange={(e) => setFormData({ ...formData, service_uid: e.target.value })}
@@ -119,16 +118,32 @@ export function DatasetServices() {
                 >
                   <option value="">Select a service</option>
                   {services.map((svc) => (
-                    <option key={svc.uid} value={svc.uid}>{svc.type}</option>
+                    <option key={svc.uid} value={svc.uid}>{svc.type || svc.uid}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label>Role (optional):</label>
+                <label>Role:</label>
                 <input
                   type="text"
                   value={formData.role || ''}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Attributes (JSON):</label>
+                <textarea
+                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  onChange={(e) => {
+                    try {
+                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, attrs });
+                    } catch {
+                      // Invalid JSON, keep current value
+                    }
+                  }}
+                  rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -146,13 +161,14 @@ export function DatasetServices() {
             <th>Dataset</th>
             <th>Service</th>
             <th>Role</th>
+            <th>Attributes</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {relations.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No relationships found</td>
+              <td colSpan={5} className="empty">No relationships found</td>
             </tr>
           ) : (
             relations.map((rel) => (
@@ -160,6 +176,7 @@ export function DatasetServices() {
                 <td>{getDatasetTitle(rel.dataset_uid)}</td>
                 <td>{getServiceType(rel.service_uid)}</td>
                 <td>{rel.role || '-'}</td>
+                <td className="attrs">{rel.attrs ? JSON.stringify(rel.attrs) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleDelete(rel.dataset_uid, rel.service_uid)} className="btn-delete">Delete</button>
                 </td>

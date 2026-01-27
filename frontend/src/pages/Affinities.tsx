@@ -12,7 +12,6 @@ export function Affinities() {
   const [showForm, setShowForm] = useState(false);
   const [editingAffinity, setEditingAffinity] = useState<Affinity | null>(null);
   const [formData, setFormData] = useState<AffinityCreate>({
-    version: 1,
     endpoint_uids: [],
     service_uids: []
   });
@@ -53,7 +52,7 @@ export function Affinities() {
       }
       setShowForm(false);
       setEditingAffinity(null);
-      setFormData({ version: 1, endpoint_uids: [], service_uids: [] });
+      setFormData({ endpoint_uids: [], service_uids: [] });
       fetchData();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -88,13 +87,13 @@ export function Affinities() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingAffinity(null);
-    setFormData({ version: 1, endpoint_uids: [], service_uids: [] });
+    setFormData({ endpoint_uids: [], service_uids: [] });
   };
 
   const getDatasetTitle = (uid: string | undefined) => {
     if (!uid) return '-';
     const ds = datasets.find(d => d.uid === uid);
-    return ds ? ds.title : uid;
+    return ds?.title || uid;
   };
 
   const toggleArrayItem = (array: string[], item: string): string[] => {
@@ -123,14 +122,14 @@ export function Affinities() {
             <h2>{editingAffinity ? 'Edit Affinity' : 'New Affinity'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Dataset (optional):</label>
+                <label>Dataset:</label>
                 <select
                   value={formData.dataset_uid || ''}
                   onChange={(e) => setFormData({ ...formData, dataset_uid: e.target.value || undefined })}
                 >
                   <option value="">No dataset</option>
                   {datasets.map((ds) => (
-                    <option key={ds.uid} value={ds.uid}>{ds.title}</option>
+                    <option key={ds.uid} value={ds.uid}>{ds.title || ds.uid}</option>
                   ))}
                 </select>
               </div>
@@ -166,7 +165,7 @@ export function Affinities() {
                           service_uids: toggleArrayItem(formData.service_uids || [], svc.uid)
                         })}
                       />
-                      {svc.type}
+                      {svc.type || svc.uid}
                     </label>
                   ))}
                   {services.length === 0 && <span className="empty-hint">No services available</span>}
@@ -176,10 +175,10 @@ export function Affinities() {
                 <label>Version:</label>
                 <input
                   type="number"
-                  value={formData.version}
-                  onChange={(e) => setFormData({ ...formData, version: parseInt(e.target.value) || 1 })}
-                  required
+                  value={formData.version ?? ''}
+                  onChange={(e) => setFormData({ ...formData, version: e.target.value ? parseInt(e.target.value) : undefined })}
                   min={1}
+                  placeholder="Optional"
                 />
               </div>
               <div className="form-group">
@@ -195,6 +194,7 @@ export function Affinities() {
                     }
                   }}
                   rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -214,13 +214,14 @@ export function Affinities() {
             <th>Endpoints</th>
             <th>Services</th>
             <th>Version</th>
+            <th>Attributes</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {affinities.length === 0 ? (
             <tr>
-              <td colSpan={6} className="empty">No affinities found</td>
+              <td colSpan={7} className="empty">No affinities found</td>
             </tr>
           ) : (
             affinities.map((aff) => (
@@ -229,7 +230,8 @@ export function Affinities() {
                 <td>{getDatasetTitle(aff.dataset_uid)}</td>
                 <td>{aff.endpoint_uids?.length || 0}</td>
                 <td>{aff.service_uids?.length || 0}</td>
-                <td>{aff.version}</td>
+                <td>{aff.version ?? '-'}</td>
+                <td className="attrs">{aff.attrs ? JSON.stringify(aff.attrs) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleEdit(aff)} className="btn-edit">Edit</button>
                   <button onClick={() => handleDelete(aff.triple_uid)} className="btn-delete">Delete</button>

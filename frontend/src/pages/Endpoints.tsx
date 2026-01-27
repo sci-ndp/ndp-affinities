@@ -40,15 +40,21 @@ export function Endpoints() {
       setEditingEndpoint(null);
       setFormData({ kind: '' });
       fetchEndpoints();
-    } catch (err) {
-      setError('Failed to save endpoint');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr.response?.data?.detail || 'Failed to save endpoint');
       console.error(err);
     }
   };
 
   const handleEdit = (endpoint: Endpoint) => {
     setEditingEndpoint(endpoint);
-    setFormData({ kind: endpoint.kind, attrs: endpoint.attrs });
+    setFormData({
+      kind: endpoint.kind,
+      url: endpoint.url,
+      source_ep: endpoint.source_ep,
+      metadata: endpoint.metadata
+    });
     setShowForm(true);
   };
 
@@ -88,7 +94,7 @@ export function Endpoints() {
             <h2>{editingEndpoint ? 'Edit Endpoint' : 'New Endpoint'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Kind:</label>
+                <label>Kind: *</label>
                 <input
                   type="text"
                   value={formData.kind}
@@ -97,18 +103,36 @@ export function Endpoints() {
                 />
               </div>
               <div className="form-group">
-                <label>Attributes (JSON):</label>
+                <label>URL:</label>
+                <input
+                  type="text"
+                  value={formData.url || ''}
+                  onChange={(e) => setFormData({ ...formData, url: e.target.value || undefined })}
+                  placeholder="https://example.com/api"
+                />
+              </div>
+              <div className="form-group">
+                <label>Source Endpoint:</label>
+                <input
+                  type="text"
+                  value={formData.source_ep || ''}
+                  onChange={(e) => setFormData({ ...formData, source_ep: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
                   onChange={(e) => {
                     try {
-                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
-                      setFormData({ ...formData, attrs });
+                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, metadata });
                     } catch {
                       // Invalid JSON, keep current value
                     }
                   }}
                   rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -125,21 +149,25 @@ export function Endpoints() {
           <tr>
             <th>UID</th>
             <th>Kind</th>
-            <th>Attributes</th>
+            <th>URL</th>
+            <th>Source EP</th>
+            <th>Metadata</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {endpoints.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No endpoints found</td>
+              <td colSpan={6} className="empty">No endpoints found</td>
             </tr>
           ) : (
             endpoints.map((endpoint) => (
               <tr key={endpoint.uid}>
                 <td className="uid">{endpoint.uid}</td>
                 <td>{endpoint.kind}</td>
-                <td className="attrs">{endpoint.attrs ? JSON.stringify(endpoint.attrs) : '-'}</td>
+                <td>{endpoint.url || '-'}</td>
+                <td>{endpoint.source_ep || '-'}</td>
+                <td className="attrs">{endpoint.metadata ? JSON.stringify(endpoint.metadata) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleEdit(endpoint)} className="btn-edit">Edit</button>
                   <button onClick={() => handleDelete(endpoint.uid)} className="btn-delete">Delete</button>

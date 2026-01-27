@@ -8,7 +8,7 @@ export function Datasets() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
-  const [formData, setFormData] = useState<DatasetCreate>({ title: '' });
+  const [formData, setFormData] = useState<DatasetCreate>({});
 
   const fetchDatasets = async () => {
     try {
@@ -38,17 +38,22 @@ export function Datasets() {
       }
       setShowForm(false);
       setEditingDataset(null);
-      setFormData({ title: '' });
+      setFormData({});
       fetchDatasets();
-    } catch (err) {
-      setError('Failed to save dataset');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr.response?.data?.detail || 'Failed to save dataset');
       console.error(err);
     }
   };
 
   const handleEdit = (dataset: Dataset) => {
     setEditingDataset(dataset);
-    setFormData({ title: dataset.title, attrs: dataset.attrs });
+    setFormData({
+      title: dataset.title,
+      source_ep: dataset.source_ep,
+      metadata: dataset.metadata
+    });
     setShowForm(true);
   };
 
@@ -66,7 +71,7 @@ export function Datasets() {
   const handleCancel = () => {
     setShowForm(false);
     setEditingDataset(null);
-    setFormData({ title: '' });
+    setFormData({});
   };
 
   if (loading) return <div>Loading...</div>;
@@ -91,24 +96,32 @@ export function Datasets() {
                 <label>Title:</label>
                 <input
                   type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
+                  value={formData.title || ''}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value || undefined })}
                 />
               </div>
               <div className="form-group">
-                <label>Attributes (JSON):</label>
+                <label>Source Endpoint:</label>
+                <input
+                  type="text"
+                  value={formData.source_ep || ''}
+                  onChange={(e) => setFormData({ ...formData, source_ep: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
                   onChange={(e) => {
                     try {
-                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
-                      setFormData({ ...formData, attrs });
+                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, metadata });
                     } catch {
                       // Invalid JSON, keep current value
                     }
                   }}
                   rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -125,21 +138,23 @@ export function Datasets() {
           <tr>
             <th>UID</th>
             <th>Title</th>
-            <th>Attributes</th>
+            <th>Source EP</th>
+            <th>Metadata</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {datasets.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No datasets found</td>
+              <td colSpan={5} className="empty">No datasets found</td>
             </tr>
           ) : (
             datasets.map((dataset) => (
               <tr key={dataset.uid}>
                 <td className="uid">{dataset.uid}</td>
-                <td>{dataset.title}</td>
-                <td className="attrs">{dataset.attrs ? JSON.stringify(dataset.attrs) : '-'}</td>
+                <td>{dataset.title || '-'}</td>
+                <td>{dataset.source_ep || '-'}</td>
+                <td className="attrs">{dataset.metadata ? JSON.stringify(dataset.metadata) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleEdit(dataset)} className="btn-edit">Edit</button>
                   <button onClick={() => handleDelete(dataset.uid)} className="btn-delete">Delete</button>

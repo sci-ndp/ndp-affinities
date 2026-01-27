@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { serviceEndpointsApi, servicesApi, endpointsApi } from '../api/client';
-import type { ServiceEndpoint, Service, Endpoint } from '../types';
+import type { ServiceEndpoint, ServiceEndpointCreate, Service, Endpoint } from '../types';
 
 export function ServiceEndpoints() {
   const [relations, setRelations] = useState<ServiceEndpoint[]>([]);
@@ -9,10 +9,9 @@ export function ServiceEndpoints() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState<ServiceEndpoint>({
+  const [formData, setFormData] = useState<ServiceEndpointCreate>({
     service_uid: '',
-    endpoint_uid: '',
-    role: ''
+    endpoint_uid: ''
   });
 
   const fetchData = async () => {
@@ -44,7 +43,7 @@ export function ServiceEndpoints() {
     try {
       await serviceEndpointsApi.create(formData);
       setShowForm(false);
-      setFormData({ service_uid: '', endpoint_uid: '', role: '' });
+      setFormData({ service_uid: '', endpoint_uid: '' });
       fetchData();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -66,17 +65,17 @@ export function ServiceEndpoints() {
 
   const handleCancel = () => {
     setShowForm(false);
-    setFormData({ service_uid: '', endpoint_uid: '', role: '' });
+    setFormData({ service_uid: '', endpoint_uid: '' });
   };
 
   const getServiceType = (uid: string) => {
     const svc = services.find(s => s.uid === uid);
-    return svc ? svc.type : uid;
+    return svc?.type || uid;
   };
 
   const getEndpointKind = (uid: string) => {
     const ep = endpoints.find(e => e.uid === uid);
-    return ep ? ep.kind : uid;
+    return ep?.kind || uid;
   };
 
   if (loading) return <div>Loading...</div>;
@@ -98,7 +97,7 @@ export function ServiceEndpoints() {
             <h2>New Service-Endpoint Relationship</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Service:</label>
+                <label>Service: *</label>
                 <select
                   value={formData.service_uid}
                   onChange={(e) => setFormData({ ...formData, service_uid: e.target.value })}
@@ -106,12 +105,12 @@ export function ServiceEndpoints() {
                 >
                   <option value="">Select a service</option>
                   {services.map((svc) => (
-                    <option key={svc.uid} value={svc.uid}>{svc.type}</option>
+                    <option key={svc.uid} value={svc.uid}>{svc.type || svc.uid}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label>Endpoint:</label>
+                <label>Endpoint: *</label>
                 <select
                   value={formData.endpoint_uid}
                   onChange={(e) => setFormData({ ...formData, endpoint_uid: e.target.value })}
@@ -124,11 +123,27 @@ export function ServiceEndpoints() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Role (optional):</label>
+                <label>Role:</label>
                 <input
                   type="text"
                   value={formData.role || ''}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value || undefined })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Attributes (JSON):</label>
+                <textarea
+                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  onChange={(e) => {
+                    try {
+                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFormData({ ...formData, attrs });
+                    } catch {
+                      // Invalid JSON, keep current value
+                    }
+                  }}
+                  rows={4}
+                  placeholder='{"key": "value"}'
                 />
               </div>
               <div className="form-actions">
@@ -146,13 +161,14 @@ export function ServiceEndpoints() {
             <th>Service</th>
             <th>Endpoint</th>
             <th>Role</th>
+            <th>Attributes</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {relations.length === 0 ? (
             <tr>
-              <td colSpan={4} className="empty">No relationships found</td>
+              <td colSpan={5} className="empty">No relationships found</td>
             </tr>
           ) : (
             relations.map((rel) => (
@@ -160,6 +176,7 @@ export function ServiceEndpoints() {
                 <td>{getServiceType(rel.service_uid)}</td>
                 <td>{getEndpointKind(rel.endpoint_uid)}</td>
                 <td>{rel.role || '-'}</td>
+                <td className="attrs">{rel.attrs ? JSON.stringify(rel.attrs) : '-'}</td>
                 <td className="actions">
                   <button onClick={() => handleDelete(rel.service_uid, rel.endpoint_uid)} className="btn-delete">Delete</button>
                 </td>
