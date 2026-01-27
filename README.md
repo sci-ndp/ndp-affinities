@@ -116,6 +116,18 @@ Stores service information.
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
 
+### ndp_dataset_endpoint
+
+Junction table connecting datasets with endpoints (many-to-many).
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `dataset_uid` | UUID | PK, FK → ndp_dataset |
+| `endpoint_uid` | UUID | PK, FK → ndp_endpoint |
+| `role` | TEXT | |
+| `attrs` | JSONB | |
+| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
+
 ## Project Structure
 
 ```
@@ -128,5 +140,6 @@ Stores service information.
     └── migrations/       # Database migrations (run automatically)
         ├── 001_create_ndp_endpoint.sql
         ├── 002_create_ndp_dataset.sql
-        └── 003_create_ndp_service.sql
+        ├── 003_create_ndp_service.sql
+        └── 004_create_ndp_dataset_endpoint.sql
 ```
