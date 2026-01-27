@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "affinities",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "affinities",
+      "Username": "affinities",
+      "SSLMode": "prefer"
+    }
+  }
+}
