@@ -16,6 +16,7 @@ docker compose up -d
 This will start:
 - **PostgreSQL** on `localhost:5432`
 - **pgAdmin** on `http://localhost:5050`
+- **API** on `http://localhost:8000` (Swagger UI at `/docs`)
 
 Migrations run automatically on first startup.
 
@@ -43,6 +44,21 @@ cp .env.example .env
 | `PGADMIN_EMAIL` | `admin@admin.com` | Login email |
 | `PGADMIN_PASSWORD` | `admin` | Login password |
 | `PGADMIN_PORT` | `5050` | Exposed port |
+
+### API
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgresql://affinities:affinities@localhost:5432/affinities` | Database connection string |
+| `API_PORT` | `8000` | Exposed port |
+
+## Local Development
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/uvicorn app.main:app --reload
+```
 
 ## Accessing pgAdmin
 
@@ -172,16 +188,18 @@ Stores affinity combinations (dataset + endpoints + services).
 ```
 .
 ├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
 ├── .env.example
+├── app/                  # FastAPI application
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models/
+│   ├── schemas/
+│   └── routers/
 ├── pgadmin/
-│   └── servers.json      # pgAdmin server configuration
+│   └── servers.json
 └── sql/
-    └── migrations/       # Database migrations (run automatically)
-        ├── 001_create_ndp_endpoint.sql
-        ├── 002_create_ndp_dataset.sql
-        ├── 003_create_ndp_service.sql
-        ├── 004_create_ndp_dataset_endpoint.sql
-        ├── 005_create_ndp_dataset_service.sql
-        ├── 006_create_ndp_service_endpoint.sql
-        └── 007_create_ndp_affinity_triple.sql
+    └── migrations/
 ```
