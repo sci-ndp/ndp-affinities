@@ -39,6 +39,15 @@ services:
       - postgres
     restart: unless-stopped
 
+  frontend:
+    build: ./frontend
+    container_name: ndp-affinities-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   pgadmin_data:
