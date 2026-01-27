@@ -53,3 +53,27 @@ def test_delete_dataset_endpoint(client):
 def test_delete_dataset_endpoint_not_found(client):
     response = client.delete("/dataset-endpoints/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000001")
     assert response.status_code == 404
+
+
+def test_create_dataset_endpoint_nonexistent_dataset(client):
+    endpoint = client.post("/ep", json={"kind": "http"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/dataset-endpoints", json={
+        "dataset_uid": fake_uid,
+        "endpoint_uid": endpoint["uid"]
+    })
+    assert response.status_code == 404
+    assert "Dataset" in response.json()["detail"]
+
+
+def test_create_dataset_endpoint_nonexistent_endpoint(client):
+    dataset = client.post("/datasets", json={"title": "DS"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/dataset-endpoints", json={
+        "dataset_uid": dataset["uid"],
+        "endpoint_uid": fake_uid
+    })
+    assert response.status_code == 404
+    assert "Endpoint" in response.json()["detail"]

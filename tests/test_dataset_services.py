@@ -52,3 +52,27 @@ def test_delete_dataset_service(client):
 def test_delete_dataset_service_not_found(client):
     response = client.delete("/dataset-services/00000000-0000-0000-0000-000000000000/00000000-0000-0000-0000-000000000001")
     assert response.status_code == 404
+
+
+def test_create_dataset_service_nonexistent_dataset(client):
+    service = client.post("/services", json={"type": "compute"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/dataset-services", json={
+        "dataset_uid": fake_uid,
+        "service_uid": service["uid"]
+    })
+    assert response.status_code == 404
+    assert "Dataset" in response.json()["detail"]
+
+
+def test_create_dataset_service_nonexistent_service(client):
+    dataset = client.post("/datasets", json={"title": "DS"}).json()
+    fake_uid = "00000000-0000-0000-0000-000000000000"
+
+    response = client.post("/dataset-services", json={
+        "dataset_uid": dataset["uid"],
+        "service_uid": fake_uid
+    })
+    assert response.status_code == 404
+    assert "Service" in response.json()["detail"]
