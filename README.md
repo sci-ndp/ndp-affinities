@@ -101,6 +101,21 @@ Stores dataset information.
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
 
+### ndp_service
+
+Stores service information.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `uid` | UUID | PK, auto-generated |
+| `type` | TEXT | |
+| `openapi_url` | TEXT | |
+| `version` | TEXT | |
+| `source_ep` | TEXT | |
+| `metadata` | JSONB | |
+| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
+
 ## Project Structure
 
 ```
@@ -112,5 +127,6 @@ Stores dataset information.
 └── sql/
     └── migrations/       # Database migrations (run automatically)
         ├── 001_create_ndp_endpoint.sql
-        └── 002_create_ndp_dataset.sql
+        ├── 002_create_ndp_dataset.sql
+        └── 003_create_ndp_service.sql
 ```
