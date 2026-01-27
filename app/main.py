@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 
-from app.routers import endpoints_router
+from app.routers import (
+    endpoints_router,
+    datasets_router,
+    services_router,
+    dataset_endpoints_router,
+    dataset_services_router,
+    service_endpoints_router,
+    affinities_router,
+)
 
 app = FastAPI(
     title="NDP Affinities API",
@@ -9,6 +17,12 @@ app = FastAPI(
 )
 
 app.include_router(endpoints_router)
+app.include_router(datasets_router)
+app.include_router(services_router)
+app.include_router(dataset_endpoints_router)
+app.include_router(dataset_services_router)
+app.include_router(service_endpoints_router)
+app.include_router(affinities_router)
 
 
 @app.get("/health")
