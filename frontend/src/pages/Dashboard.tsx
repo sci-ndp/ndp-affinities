@@ -29,6 +29,33 @@ function shortUid(uid: string): string {
   return uid.slice(0, 8);
 }
 
+const DEMO_STEPS = [
+  {
+    title: 'Nodes',
+    route: '/datasets',
+    script: 'Start with datasets/services/endpoints and show stable IDs + metadata.',
+    outcome: 'Audience sees canonical node layer.'
+  },
+  {
+    title: 'Pairwise Edges',
+    route: '/graph-connectivity?mode=pairwise',
+    script: 'Switch graph to pairwise mode and explain D->E, D->S, S->E links.',
+    outcome: 'Audience sees relationship backbone.'
+  },
+  {
+    title: 'Hyperedge Triple',
+    route: '/affinities',
+    script: 'Open Affinity Explorer and inspect one versioned triple with attrs.',
+    outcome: 'Audience sees N-way affinity semantics.'
+  },
+  {
+    title: 'Query Story',
+    route: '/graph-connectivity',
+    script: 'Focus one dataset and compare pairwise vs overlay to answer impact/lineage questions.',
+    outcome: 'Audience sees cross-entity query value.'
+  }
+] as const;
+
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +66,9 @@ export function Dashboard() {
   const [datasetEndpoints, setDatasetEndpoints] = useState<DatasetEndpoint[]>([]);
   const [datasetServices, setDatasetServices] = useState<DatasetService[]>([]);
   const [serviceEndpoints, setServiceEndpoints] = useState<ServiceEndpoint[]>([]);
+
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,6 +191,7 @@ export function Dashboard() {
   if (loading) return <div>Loading...</div>;
 
   const readinessStyle = { '--readiness': `${analytics.systemReadiness}%` } as CSSProperties;
+  const currentStep = DEMO_STEPS[demoStep];
 
   return (
     <div className="dashboard">
@@ -171,6 +202,11 @@ export function Dashboard() {
             This dashboard demonstrates the stack's core value: expressing dataset + endpoint + service compatibility as
             concrete, queryable affinity triples.
           </p>
+          <div className="proof-badges">
+            <span className="proof-badge">Rule: Central DB view</span>
+            <span className="proof-badge">Rule: Pairwise links</span>
+            <span className="proof-badge">Rule: Hyperedge triples</span>
+          </div>
         </div>
 
         <div className="readiness-panel">
@@ -183,6 +219,37 @@ export function Dashboard() {
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      <section className="card demo-mode-card">
+        <div className="demo-mode-header">
+          <h3>Guided Demo Mode</h3>
+          <button type="button" className="btn-secondary" onClick={() => setDemoMode((v) => !v)}>
+            {demoMode ? 'Disable' : 'Enable'} Demo Mode
+          </button>
+        </div>
+        <div className="demo-steps">
+          {DEMO_STEPS.map((step, idx) => (
+            <button
+              key={step.title}
+              type="button"
+              className={`step-chip ${demoStep === idx ? 'active' : ''}`}
+              onClick={() => {
+                setDemoMode(true);
+                setDemoStep(idx);
+              }}
+            >
+              {idx + 1}. {step.title}
+            </button>
+          ))}
+        </div>
+        {demoMode && (
+          <div className="demo-focus">
+            <p><strong>Say:</strong> {currentStep.script}</p>
+            <p><strong>Outcome:</strong> {currentStep.outcome}</p>
+            <Link className="btn-primary" to={currentStep.route}>Open Step View</Link>
+          </div>
+        )}
+      </section>
 
       <section className="stats-grid">
         <article className="stat-card">
@@ -237,7 +304,7 @@ export function Dashboard() {
           <h3>Graph Connectivity</h3>
           <div className="edge-grid">
             <div>
-              <p>Dataset-EndPoint edges</p>
+              <p>Dataset-Endpoint edges</p>
               <h4>{datasetEndpoints.length}</h4>
             </div>
             <div>
@@ -329,23 +396,26 @@ export function Dashboard() {
         </article>
 
         <article className="card">
-          <h3>Demo Routes</h3>
+          <h3>Demo Script</h3>
+          <ol className="demo-order">
+            {DEMO_STEPS.map((step, idx) => (
+              <li key={step.title}>
+                <strong>Step {idx + 1}:</strong> {step.script} <Link to={step.route}>Open</Link>
+              </li>
+            ))}
+          </ol>
           <div className="dashboard-cards demo-links">
+            <Link className="card demo-card" to="/golden-rules">
+              <h4>Golden Rules</h4>
+              <p>Rule-by-rule evidence matrix mapped to live UI screens.</p>
+            </Link>
             <Link className="card demo-card" to="/affinities">
               <h4>Affinity Explorer</h4>
               <p>Inspect, filter, and present triple compatibility storylines.</p>
             </Link>
-            <Link className="card demo-card" to="/datasets">
-              <h4>Datasets</h4>
-              <p>Review metadata and sources that feed affinity matching.</p>
-            </Link>
-            <Link className="card demo-card" to="/services">
-              <h4>Services</h4>
-              <p>Show service capabilities and versions powering integrations.</p>
-            </Link>
             <Link className="card demo-card" to="/graph-connectivity">
               <h4>Graph Connectivity</h4>
-              <p>Live relationship graph with affinity overlays for high-impact demos.</p>
+              <p>Live relationship graph with pairwise/triple modes and focus lens.</p>
             </Link>
           </div>
         </article>

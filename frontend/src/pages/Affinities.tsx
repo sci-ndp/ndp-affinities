@@ -248,6 +248,11 @@ export function Affinities() {
         <div>
           <h1>Affinity Explorer</h1>
           <p className="lead">Interactive view of dataset, endpoint, and service combinations for demo-ready storytelling.</p>
+          <div className="proof-badges">
+            <span className="proof-badge">Rule: Hyperedge triple</span>
+            <span className="proof-badge">Rule: Versioned association</span>
+            <span className="proof-badge">Rule: Pairwise context</span>
+          </div>
         </div>
         <button
           onClick={() => {

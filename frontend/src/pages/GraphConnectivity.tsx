@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   affinitiesApi,
   datasetEndpointsApi,
@@ -19,6 +20,7 @@ import type {
 } from '../types';
 
 type NodeType = 'dataset' | 'service' | 'endpoint';
+type GraphMode = 'combined' | 'pairwise' | 'triple';
 
 type GraphNode = {
   id: string;
@@ -48,6 +50,9 @@ function distributeY(count: number, top: number, bottom: number): number[] {
 }
 
 export function GraphConnectivity() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialMode = (searchParams.get('mode') as GraphMode) || 'combined';
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,6 +65,7 @@ export function GraphConnectivity() {
   const [affinities, setAffinities] = useState<Affinity[]>([]);
 
   const [focusDataset, setFocusDataset] = useState('');
+  const [graphMode, setGraphMode] = useState<GraphMode>(initialMode);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,6 +107,13 @@ export function GraphConnectivity() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    setSearchParams((prev) => {
+      prev.set('mode', graphMode);
+      return prev;
+    }, { replace: true });
+  }, [graphMode, setSearchParams]);
 
   const datasetById = useMemo(() => new Map(datasets.map((d) => [d.uid, d])), [datasets]);
   const serviceById = useMemo(() => new Map(services.map((s) => [s.uid, s])), [services]);
@@ -246,7 +259,44 @@ export function GraphConnectivity() {
     services,
   ]);
 
+  const filteredEdges = useMemo(() => {
+    if (graphMode === 'pairwise') {
+      return graph.edges.filter((edge) => edge.type !== 'affinity');
+    }
+    if (graphMode === 'triple') {
+      return graph.edges.filter((edge) => edge.type === 'affinity');
+    }
+    return graph.edges;
+  }, [graph.edges, graphMode]);
+
   const nodeById = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph.nodes]);
+
+  const focusInsights = useMemo(() => {
+    if (!focusDataset) {
+      return {
+        title: 'Global lens',
+        services: new Set(datasetServices.map((edge) => edge.service_uid)).size,
+        endpoints: new Set(datasetEndpoints.map((edge) => edge.endpoint_uid)).size,
+        triples: affinities.length,
+      };
+    }
+
+    const directServices = new Set(datasetServices.filter((edge) => edge.dataset_uid === focusDataset).map((edge) => edge.service_uid));
+    const directEndpoints = new Set(datasetEndpoints.filter((edge) => edge.dataset_uid === focusDataset).map((edge) => edge.endpoint_uid));
+    const tripleRows = affinities.filter((affinity) => affinity.dataset_uid === focusDataset);
+
+    tripleRows.forEach((row) => {
+      (row.service_uids || []).forEach((id) => directServices.add(id));
+      (row.endpoint_uids || []).forEach((id) => directEndpoints.add(id));
+    });
+
+    return {
+      title: datasetById.get(focusDataset)?.title || `Dataset ${shortUid(focusDataset)}`,
+      services: directServices.size,
+      endpoints: directEndpoints.size,
+      triples: tripleRows.length,
+    };
+  }, [affinities, datasetById, datasetEndpoints, datasetServices, focusDataset]);
 
   if (loading) return <div>Loading...</div>;
 
@@ -258,6 +308,11 @@ export function GraphConnectivity() {
           <p className="lead">
             Visual map of how datasets, services, and endpoints are connected through direct relationships and affinity paths.
           </p>
+          <div className="proof-badges">
+            <span className="proof-badge">Rule: Pairwise edges</span>
+            <span className="proof-badge">Rule: Hyperedge overlay</span>
+            <span className="proof-badge">Rule: Central lineage view</span>
+          </div>
         </div>
       </div>
 
@@ -276,6 +331,12 @@ export function GraphConnectivity() {
           </select>
         </label>
 
+        <div className="mode-switch">
+          <button type="button" className={`step-chip ${graphMode === 'pairwise' ? 'active' : ''}`} onClick={() => setGraphMode('pairwise')}>Pairwise only</button>
+          <button type="button" className={`step-chip ${graphMode === 'triple' ? 'active' : ''}`} onClick={() => setGraphMode('triple')}>Triple overlay</button>
+          <button type="button" className={`step-chip ${graphMode === 'combined' ? 'active' : ''}`} onClick={() => setGraphMode('combined')}>Combined</button>
+        </div>
+
         <div className="legend">
           <span className="legend-item dataset">Dataset lane</span>
           <span className="legend-item service">Service lane</span>
@@ -284,54 +345,70 @@ export function GraphConnectivity() {
         </div>
       </section>
 
-      <section className="connectivity-canvas-wrap">
-        <svg className="connectivity-canvas" viewBox="0 0 1200 720" role="img" aria-label="Connectivity network graph">
-          <defs>
-            <linearGradient id="edgeGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-              <stop offset="0%" stopColor="#42b4d6" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="#2d95bf" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#2480a5" stopOpacity="0.35" />
-            </linearGradient>
-            <linearGradient id="affinityGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.55" />
-            </linearGradient>
-          </defs>
+      <section className="connectivity-layout">
+        <div className="connectivity-canvas-wrap">
+          <svg className="connectivity-canvas" viewBox="0 0 1200 720" role="img" aria-label="Connectivity network graph">
+            <defs>
+              <linearGradient id="edgeGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%" stopColor="#42b4d6" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="#2d95bf" stopOpacity="0.55" />
+                <stop offset="100%" stopColor="#2480a5" stopOpacity="0.35" />
+              </linearGradient>
+              <linearGradient id="affinityGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.45" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.55" />
+              </linearGradient>
+            </defs>
 
-          <text x="110" y="60" className="lane-title">Datasets</text>
-          <text x="550" y="60" className="lane-title">Services</text>
-          <text x="1000" y="60" className="lane-title">Endpoints</text>
+            <text x="110" y="60" className="lane-title">Datasets</text>
+            <text x="550" y="60" className="lane-title">Services</text>
+            <text x="1000" y="60" className="lane-title">Endpoints</text>
 
-          {graph.edges.map((edge, idx) => {
-            const source = nodeById.get(edge.source);
-            const target = nodeById.get(edge.target);
-            if (!source || !target) return null;
-            const c1x = source.x + (target.x - source.x) * 0.35;
-            const c2x = source.x + (target.x - source.x) * 0.65;
-            const d = `M ${source.x} ${source.y} C ${c1x} ${source.y}, ${c2x} ${target.y}, ${target.x} ${target.y}`;
-            const isAffinity = edge.type === 'affinity';
-            return (
-              <path
-                key={`${edge.type}-${edge.source}-${edge.target}-${idx}`}
-                d={d}
-                className={`edge edge-${edge.type}`}
-                stroke={isAffinity ? 'url(#affinityGradient)' : 'url(#edgeGradient)'}
-                strokeWidth={isAffinity ? 1.2 + edge.weight * 0.9 : 0.8 + edge.weight * 0.55}
-                strokeDasharray={isAffinity ? '6 4' : undefined}
-              />
-            );
-          })}
+            {filteredEdges.map((edge, idx) => {
+              const source = nodeById.get(edge.source);
+              const target = nodeById.get(edge.target);
+              if (!source || !target) return null;
+              const c1x = source.x + (target.x - source.x) * 0.35;
+              const c2x = source.x + (target.x - source.x) * 0.65;
+              const d = `M ${source.x} ${source.y} C ${c1x} ${source.y}, ${c2x} ${target.y}, ${target.x} ${target.y}`;
+              const isAffinity = edge.type === 'affinity';
+              return (
+                <path
+                  key={`${edge.type}-${edge.source}-${edge.target}-${idx}`}
+                  d={d}
+                  className={`edge edge-${edge.type}`}
+                  stroke={isAffinity ? 'url(#affinityGradient)' : 'url(#edgeGradient)'}
+                  strokeWidth={isAffinity ? 1.2 + edge.weight * 0.9 : 0.8 + edge.weight * 0.55}
+                  strokeDasharray={isAffinity ? '6 4' : undefined}
+                />
+              );
+            })}
 
-          {graph.nodes.map((node) => (
-            <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className={`graph-node ${node.type}`}>
-              <circle r="14" />
-              <text x={node.type === 'endpoint' ? -20 : 20} y="5" textAnchor={node.type === 'endpoint' ? 'end' : 'start'}>
-                {node.label.length > 44 ? `${node.label.slice(0, 44)}...` : node.label}
-              </text>
-              <title>{node.label}</title>
-            </g>
-          ))}
-        </svg>
+            {graph.nodes.map((node) => (
+              <g key={node.id} transform={`translate(${node.x}, ${node.y})`} className={`graph-node ${node.type}`}>
+                <circle r="14" />
+                <text x={node.type === 'endpoint' ? -20 : 20} y="5" textAnchor={node.type === 'endpoint' ? 'end' : 'start'}>
+                  {node.label.length > 44 ? `${node.label.slice(0, 44)}...` : node.label}
+                </text>
+                <title>{node.label}</title>
+              </g>
+            ))}
+          </svg>
+        </div>
+
+        <aside className="card why-panel">
+          <h3>Why This Matters</h3>
+          <p className="lead-tight">{focusInsights.title}</p>
+          <p>
+            The central graph materializes how one dataset propagates through services and reaches endpoints, enabling
+            fast cross-EP discovery and impact analysis.
+          </p>
+          <ul className="rule-proof-list">
+            <li>Connected services: <strong>{focusInsights.services}</strong></li>
+            <li>Connected endpoints: <strong>{focusInsights.endpoints}</strong></li>
+            <li>Affinity triples: <strong>{focusInsights.triples}</strong></li>
+          </ul>
+        </aside>
       </section>
 
       <section className="stats-grid">
@@ -341,7 +418,7 @@ export function GraphConnectivity() {
         </article>
         <article className="stat-card">
           <p>Visible Edges</p>
-          <h3>{graph.edges.length}</h3>
+          <h3>{filteredEdges.length}</h3>
         </article>
         <article className="stat-card">
           <p>Hidden Datasets</p>

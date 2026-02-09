@@ -7,3 +7,4 @@ export { DatasetServices } from './DatasetServices';
 export { ServiceEndpoints } from './ServiceEndpoints';
 export { Affinities } from './Affinities';
 export { GraphConnectivity } from './GraphConnectivity';
+export { GoldenRules } from './GoldenRules';
