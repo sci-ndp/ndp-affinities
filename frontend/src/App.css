@@ -326,6 +326,151 @@ h4 {
   margin-bottom: 7px;
 }
 
+.graph-link-row {
+  margin-top: 12px;
+}
+
+.connectivity-page .page-header {
+  margin-bottom: 14px;
+}
+
+.connectivity-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.connectivity-toolbar label {
+  display: grid;
+  gap: 6px;
+  color: #334767;
+  font-weight: 600;
+  min-width: 320px;
+}
+
+.connectivity-toolbar select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #c8d6ea;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend-item {
+  font-size: 0.8rem;
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+}
+
+.legend-item.dataset {
+  background: #d2f4f3;
+  color: #0d5957;
+  border-color: #9ddedd;
+}
+
+.legend-item.service {
+  background: #dbeafe;
+  color: #15437e;
+  border-color: #b8d5fc;
+}
+
+.legend-item.endpoint {
+  background: #efe7ff;
+  color: #5e34a0;
+  border-color: #d8c5fa;
+}
+
+.legend-item.affinity {
+  background: #ffe8d2;
+  color: #8a3d0f;
+  border-color: #fdcfa3;
+}
+
+.connectivity-canvas-wrap {
+  background: radial-gradient(circle at 25% 20%, #eef8ff 0%, #f8fbff 40%, #f5f9fe 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 8px;
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+.connectivity-canvas {
+  width: 100%;
+  min-width: 980px;
+  height: 680px;
+}
+
+.lane-title {
+  font-size: 20px;
+  fill: #2c4468;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.edge {
+  fill: none;
+  stroke-linecap: round;
+  opacity: 0.72;
+}
+
+.edge-affinity {
+  animation: pulseDash 4s linear infinite;
+}
+
+.edge-dataset-endpoint {
+  opacity: 0.28;
+}
+
+.graph-node circle {
+  stroke-width: 2;
+  filter: drop-shadow(0 4px 5px rgba(25, 52, 90, 0.18));
+}
+
+.graph-node text {
+  fill: #243d60;
+  font-size: 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  dominant-baseline: middle;
+}
+
+.graph-node.dataset circle {
+  fill: #b9ece9;
+  stroke: #2e8f8c;
+}
+
+.graph-node.service circle {
+  fill: #c7ddff;
+  stroke: #3269a8;
+}
+
+.graph-node.endpoint circle {
+  fill: #eadcff;
+  stroke: #7a43b1;
+}
+
+@keyframes pulseDash {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -40;
+  }
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-edit,
@@ -670,6 +815,15 @@ h4 {
 
   .affinity-list {
     max-height: 46vh;
+  }
+
+  .connectivity-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .connectivity-toolbar label {
+    min-width: 0;
   }
 }
 

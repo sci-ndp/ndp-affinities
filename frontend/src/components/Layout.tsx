@@ -28,6 +28,7 @@ export function Layout() {
           <li><NavLink to="/dataset-services" onClick={closeMenu} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Dataset-Services</NavLink></li>
           <li><NavLink to="/service-endpoints" onClick={closeMenu} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Service-Endpoints</NavLink></li>
           <li><NavLink to="/affinities" onClick={closeMenu} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Affinities</NavLink></li>
+          <li><NavLink to="/graph-connectivity" onClick={closeMenu} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>Graph Connectivity</NavLink></li>
         </ul>
       </nav>
       <main className="content">

@@ -253,6 +253,9 @@ export function Dashboard() {
               <h4>{datasetEndpoints.length + datasetServices.length + serviceEndpoints.length}</h4>
             </div>
           </div>
+          <div className="graph-link-row">
+            <Link className="btn-primary" to="/graph-connectivity">Open Graph View</Link>
+          </div>
         </article>
       </section>
 
@@ -339,6 +342,10 @@ export function Dashboard() {
             <Link className="card demo-card" to="/services">
               <h4>Services</h4>
               <p>Show service capabilities and versions powering integrations.</p>
+            </Link>
+            <Link className="card demo-card" to="/graph-connectivity">
+              <h4>Graph Connectivity</h4>
+              <p>Live relationship graph with affinity overlays for high-impact demos.</p>
             </Link>
           </div>
         </article>

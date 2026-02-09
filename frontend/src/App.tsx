@@ -8,7 +8,8 @@ import {
   DatasetEndpoints,
   DatasetServices,
   ServiceEndpoints,
-  Affinities
+  Affinities,
+  GraphConnectivity
 } from './pages';
 import './App.css';
 
@@ -25,6 +26,7 @@ function App() {
           <Route path="dataset-services" element={<DatasetServices />} />
           <Route path="service-endpoints" element={<ServiceEndpoints />} />
           <Route path="affinities" element={<Affinities />} />
+          <Route path="graph-connectivity" element={<GraphConnectivity />} />
         </Route>
       </Routes>
     </BrowserRouter>
