@@ -9,6 +9,8 @@ export function Endpoints() {
   const [showForm, setShowForm] = useState(false);
   const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
   const [formData, setFormData] = useState<EndpointCreate>({ kind: '' });
+  const [metadataText, setMetadataText] = useState('');
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const fetchEndpoints = async () => {
     try {
@@ -30,15 +32,25 @@ export function Endpoints() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (metadataError) {
+      setError('Fix JSON errors in Metadata before saving.');
+      return;
+    }
     try {
+      const payload: EndpointCreate = {
+        ...formData,
+        metadata: metadataText.trim() ? JSON.parse(metadataText) : undefined
+      };
       if (editingEndpoint) {
-        await endpointsApi.update(editingEndpoint.uid, formData);
+        await endpointsApi.update(editingEndpoint.uid, payload);
       } else {
-        await endpointsApi.create(formData);
+        await endpointsApi.create(payload);
       }
       setShowForm(false);
       setEditingEndpoint(null);
       setFormData({ kind: '' });
+      setMetadataText('');
+      setMetadataError(null);
       fetchEndpoints();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -55,6 +67,8 @@ export function Endpoints() {
       source_ep: endpoint.source_ep,
       metadata: endpoint.metadata
     });
+    setMetadataText(endpoint.metadata ? JSON.stringify(endpoint.metadata, null, 2) : '');
+    setMetadataError(null);
     setShowForm(true);
   };
 
@@ -73,6 +87,8 @@ export function Endpoints() {
     setShowForm(false);
     setEditingEndpoint(null);
     setFormData({ kind: '' });
+    setMetadataText('');
+    setMetadataError(null);
   };
 
   if (loading) return <div>Loading...</div>;
@@ -81,7 +97,16 @@ export function Endpoints() {
     <div>
       <div className="page-header">
         <h1>Endpoints</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            setEditingEndpoint(null);
+            setFormData({ kind: '' });
+            setMetadataText('');
+            setMetadataError(null);
+            setShowForm(true);
+          }}
+          className="btn-primary"
+        >
           Add Endpoint
         </button>
       </div>
@@ -122,18 +147,29 @@ export function Endpoints() {
               <div className="form-group">
                 <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
+                  value={metadataText}
                   onChange={(e) => {
+                    const value = e.target.value;
+                    setMetadataText(value);
+
+                    if (!value.trim()) {
+                      setFormData({ ...formData, metadata: undefined });
+                      setMetadataError(null);
+                      return;
+                    }
+
                     try {
-                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      const metadata = JSON.parse(value);
                       setFormData({ ...formData, metadata });
+                      setMetadataError(null);
                     } catch {
-                      // Invalid JSON, keep current value
+                      setMetadataError('Must be valid JSON.');
                     }
                   }}
                   rows={4}
                   placeholder='{"key": "value"}'
                 />
+                {metadataError && <small className="field-error">{metadataError}</small>}
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn-primary">Save</button>

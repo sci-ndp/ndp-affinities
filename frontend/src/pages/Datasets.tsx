@@ -9,6 +9,8 @@ export function Datasets() {
   const [showForm, setShowForm] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
   const [formData, setFormData] = useState<DatasetCreate>({});
+  const [metadataText, setMetadataText] = useState('');
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const fetchDatasets = async () => {
     try {
@@ -30,15 +32,25 @@ export function Datasets() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (metadataError) {
+      setError('Fix JSON errors in Metadata before saving.');
+      return;
+    }
     try {
+      const payload: DatasetCreate = {
+        ...formData,
+        metadata: metadataText.trim() ? JSON.parse(metadataText) : undefined
+      };
       if (editingDataset) {
-        await datasetsApi.update(editingDataset.uid, formData);
+        await datasetsApi.update(editingDataset.uid, payload);
       } else {
-        await datasetsApi.create(formData);
+        await datasetsApi.create(payload);
       }
       setShowForm(false);
       setEditingDataset(null);
       setFormData({});
+      setMetadataText('');
+      setMetadataError(null);
       fetchDatasets();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -54,6 +66,8 @@ export function Datasets() {
       source_ep: dataset.source_ep,
       metadata: dataset.metadata
     });
+    setMetadataText(dataset.metadata ? JSON.stringify(dataset.metadata, null, 2) : '');
+    setMetadataError(null);
     setShowForm(true);
   };
 
@@ -72,6 +86,8 @@ export function Datasets() {
     setShowForm(false);
     setEditingDataset(null);
     setFormData({});
+    setMetadataText('');
+    setMetadataError(null);
   };
 
   if (loading) return <div>Loading...</div>;
@@ -80,7 +96,16 @@ export function Datasets() {
     <div>
       <div className="page-header">
         <h1>Datasets</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            setEditingDataset(null);
+            setFormData({});
+            setMetadataText('');
+            setMetadataError(null);
+            setShowForm(true);
+          }}
+          className="btn-primary"
+        >
           Add Dataset
         </button>
       </div>
@@ -111,18 +136,29 @@ export function Datasets() {
               <div className="form-group">
                 <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
+                  value={metadataText}
                   onChange={(e) => {
+                    const value = e.target.value;
+                    setMetadataText(value);
+
+                    if (!value.trim()) {
+                      setFormData({ ...formData, metadata: undefined });
+                      setMetadataError(null);
+                      return;
+                    }
+
                     try {
-                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      const metadata = JSON.parse(value);
                       setFormData({ ...formData, metadata });
+                      setMetadataError(null);
                     } catch {
-                      // Invalid JSON, keep current value
+                      setMetadataError('Must be valid JSON.');
                     }
                   }}
                   rows={4}
                   placeholder='{"key": "value"}'
                 />
+                {metadataError && <small className="field-error">{metadataError}</small>}
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn-primary">Save</button>

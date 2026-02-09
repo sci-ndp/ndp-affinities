@@ -1,8 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { affinitiesApi, datasetsApi, endpointsApi, servicesApi } from '../api/client';
 import type { Affinity, AffinityCreate, Dataset, Endpoint, Service } from '../types';
 
+const CHIP_PREVIEW_LIMIT = 3;
+
+function formatShortUid(uid: string): string {
+  return uid.slice(0, 8);
+}
+
+function formatJsonInput(value?: Record<string, unknown>): string {
+  return value ? JSON.stringify(value, null, 2) : '';
+}
+
 export function Affinities() {
+  const [searchParams] = useSearchParams();
   const [affinities, setAffinities] = useState<Affinity[]>([]);
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
@@ -11,10 +23,17 @@ export function Affinities() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingAffinity, setEditingAffinity] = useState<Affinity | null>(null);
-  const [formData, setFormData] = useState<AffinityCreate>({
-    endpoint_uids: [],
-    service_uids: []
-  });
+  const [selectedAffinityUid, setSelectedAffinityUid] = useState<string | null>(null);
+
+  const initialDatasetFilter = searchParams.get('dataset_uid') || '';
+  const [query, setQuery] = useState('');
+  const [datasetFilter, setDatasetFilter] = useState(initialDatasetFilter);
+  const [endpointFilter, setEndpointFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+
+  const [formData, setFormData] = useState<AffinityCreate>({ endpoint_uids: [], service_uids: [] });
+  const [attrsText, setAttrsText] = useState('');
+  const [attrsError, setAttrsError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -25,7 +44,12 @@ export function Affinities() {
         endpointsApi.list(),
         servicesApi.list()
       ]);
-      setAffinities(affRes.data);
+      const sortedAffinities = [...affRes.data].sort((a, b) => {
+        const aTime = new Date(a.updated_at).getTime();
+        const bTime = new Date(b.updated_at).getTime();
+        return bTime - aTime;
+      });
+      setAffinities(sortedAffinities);
       setDatasets(dsRes.data);
       setEndpoints(epRes.data);
       setServices(svcRes.data);
@@ -42,23 +66,102 @@ export function Affinities() {
     fetchData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingAffinity) {
-        await affinitiesApi.update(editingAffinity.triple_uid, formData);
-      } else {
-        await affinitiesApi.create(formData);
-      }
-      setShowForm(false);
-      setEditingAffinity(null);
-      setFormData({ endpoint_uids: [], service_uids: [] });
-      fetchData();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { detail?: string } } };
-      setError(axiosErr.response?.data?.detail || 'Failed to save affinity');
-      console.error(err);
+  const datasetById = useMemo(
+    () => new Map(datasets.map((dataset) => [dataset.uid, dataset])),
+    [datasets]
+  );
+  const endpointById = useMemo(
+    () => new Map(endpoints.map((endpoint) => [endpoint.uid, endpoint])),
+    [endpoints]
+  );
+  const serviceById = useMemo(
+    () => new Map(services.map((service) => [service.uid, service])),
+    [services]
+  );
+
+  const getDatasetLabel = (uid: string | undefined): string => {
+    if (!uid) return 'No dataset';
+    const dataset = datasetById.get(uid);
+    return dataset?.title || `Dataset ${formatShortUid(uid)}`;
+  };
+
+  const getEndpointLabel = (uid: string): string => {
+    const endpoint = endpointById.get(uid);
+    if (!endpoint) return `Endpoint ${formatShortUid(uid)}`;
+    return `${endpoint.kind} (${formatShortUid(uid)})`;
+  };
+
+  const getServiceLabel = (uid: string): string => {
+    const service = serviceById.get(uid);
+    if (!service) return `Service ${formatShortUid(uid)}`;
+    return `${service.type || 'service'} (${formatShortUid(uid)})`;
+  };
+
+  const filteredAffinities = useMemo(() => {
+    return affinities.filter((affinity) => {
+      const datasetName = getDatasetLabel(affinity.dataset_uid).toLowerCase();
+      const endpointNames = (affinity.endpoint_uids || []).map(getEndpointLabel).join(' ').toLowerCase();
+      const serviceNames = (affinity.service_uids || []).map(getServiceLabel).join(' ').toLowerCase();
+      const combined = `${datasetName} ${endpointNames} ${serviceNames}`;
+
+      const passesQuery = !query.trim() || combined.includes(query.trim().toLowerCase());
+      const passesDataset = !datasetFilter || affinity.dataset_uid === datasetFilter;
+      const passesEndpoint = !endpointFilter || (affinity.endpoint_uids || []).includes(endpointFilter);
+      const passesService = !serviceFilter || (affinity.service_uids || []).includes(serviceFilter);
+
+      return passesQuery && passesDataset && passesEndpoint && passesService;
+    });
+  }, [
+    affinities,
+    datasetFilter,
+    endpointFilter,
+    getDatasetLabel,
+    getEndpointLabel,
+    getServiceLabel,
+    query,
+    serviceFilter
+  ]);
+
+  useEffect(() => {
+    if (filteredAffinities.length === 0) {
+      setSelectedAffinityUid(null);
+      return;
     }
+
+    const selectedStillExists = filteredAffinities.some((affinity) => affinity.triple_uid === selectedAffinityUid);
+    if (!selectedStillExists) {
+      setSelectedAffinityUid(filteredAffinities[0].triple_uid);
+    }
+  }, [filteredAffinities, selectedAffinityUid]);
+
+  const selectedAffinity = filteredAffinities.find((affinity) => affinity.triple_uid === selectedAffinityUid) || null;
+
+  const metrics = useMemo(() => {
+    const datasetsCovered = new Set(filteredAffinities.map((affinity) => affinity.dataset_uid).filter(Boolean));
+    const uniqueEndpoints = new Set(filteredAffinities.flatMap((affinity) => affinity.endpoint_uids || []));
+    const uniqueServices = new Set(filteredAffinities.flatMap((affinity) => affinity.service_uids || []));
+
+    return {
+      total: filteredAffinities.length,
+      datasets: datasetsCovered.size,
+      endpoints: uniqueEndpoints.size,
+      services: uniqueServices.size
+    };
+  }, [filteredAffinities]);
+
+  const toggleArrayItem = (array: string[], item: string): string[] => {
+    if (array.includes(item)) {
+      return array.filter((value) => value !== item);
+    }
+    return [...array, item];
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingAffinity(null);
+    setFormData({ endpoint_uids: [], service_uids: [] });
+    setAttrsText('');
+    setAttrsError(null);
   };
 
   const handleEdit = (affinity: Affinity) => {
@@ -70,51 +173,204 @@ export function Affinities() {
       attrs: affinity.attrs,
       version: affinity.version
     });
+    setAttrsText(formatJsonInput(affinity.attrs));
+    setAttrsError(null);
     setShowForm(true);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (attrsError) {
+      setError('Fix JSON errors in Attributes before saving.');
+      return;
+    }
+
+    try {
+      const payload: AffinityCreate = {
+        ...formData,
+        attrs: attrsText.trim() ? JSON.parse(attrsText) : undefined
+      };
+
+      if (editingAffinity) {
+        await affinitiesApi.update(editingAffinity.triple_uid, payload);
+      } else {
+        const createResponse = await affinitiesApi.create(payload);
+        setSelectedAffinityUid(createResponse.data.triple_uid);
+      }
+
+      resetForm();
+      await fetchData();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      setError(axiosErr.response?.data?.detail || 'Failed to save affinity');
+      console.error(err);
+    }
   };
 
   const handleDelete = async (uid: string) => {
     if (!confirm('Are you sure you want to delete this affinity?')) return;
     try {
       await affinitiesApi.delete(uid);
-      fetchData();
+      if (selectedAffinityUid === uid) {
+        setSelectedAffinityUid(null);
+      }
+      await fetchData();
     } catch (err) {
       setError('Failed to delete affinity');
       console.error(err);
     }
   };
 
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingAffinity(null);
-    setFormData({ endpoint_uids: [], service_uids: [] });
-  };
-
-  const getDatasetTitle = (uid: string | undefined) => {
-    if (!uid) return '-';
-    const ds = datasets.find(d => d.uid === uid);
-    return ds?.title || uid;
-  };
-
-  const toggleArrayItem = (array: string[], item: string): string[] => {
-    if (array.includes(item)) {
-      return array.filter(i => i !== item);
+  const renderChipList = (items: string[], resolveLabel: (uid: string) => string) => {
+    if (items.length === 0) {
+      return <span className="empty-hint">None</span>;
     }
-    return [...array, item];
+
+    const preview = items.slice(0, CHIP_PREVIEW_LIMIT);
+    const remainder = items.length - preview.length;
+
+    return (
+      <>
+        {preview.map((item) => (
+          <span key={item} className="entity-chip">{resolveLabel(item)}</span>
+        ))}
+        {remainder > 0 && <span className="entity-chip muted">+{remainder} more</span>}
+      </>
+    );
   };
 
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div>
+    <div className="affinities-page">
       <div className="page-header">
-        <h1>Affinities</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <div>
+          <h1>Affinity Explorer</h1>
+          <p className="lead">Interactive view of dataset, endpoint, and service combinations for demo-ready storytelling.</p>
+        </div>
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setEditingAffinity(null);
+            setFormData({ endpoint_uids: [], service_uids: [] });
+            setAttrsText('');
+            setAttrsError(null);
+          }}
+          className="btn-primary"
+        >
           Add Affinity
         </button>
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      <section className="stats-grid">
+        <article className="stat-card">
+          <p>Shown Affinities</p>
+          <h3>{metrics.total}</h3>
+        </article>
+        <article className="stat-card">
+          <p>Datasets in Scope</p>
+          <h3>{metrics.datasets}</h3>
+        </article>
+        <article className="stat-card">
+          <p>Endpoints in Scope</p>
+          <h3>{metrics.endpoints}</h3>
+        </article>
+        <article className="stat-card">
+          <p>Services in Scope</p>
+          <h3>{metrics.services}</h3>
+        </article>
+      </section>
+
+      <section className="explorer-filters">
+        <input
+          type="text"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search by dataset title, endpoint kind, or service type"
+        />
+        <select value={datasetFilter} onChange={(event) => setDatasetFilter(event.target.value)}>
+          <option value="">All datasets</option>
+          {datasets.map((dataset) => (
+            <option key={dataset.uid} value={dataset.uid}>{dataset.title || `Dataset ${formatShortUid(dataset.uid)}`}</option>
+          ))}
+        </select>
+        <select value={endpointFilter} onChange={(event) => setEndpointFilter(event.target.value)}>
+          <option value="">All endpoints</option>
+          {endpoints.map((endpoint) => (
+            <option key={endpoint.uid} value={endpoint.uid}>{endpoint.kind} ({formatShortUid(endpoint.uid)})</option>
+          ))}
+        </select>
+        <select value={serviceFilter} onChange={(event) => setServiceFilter(event.target.value)}>
+          <option value="">All services</option>
+          {services.map((service) => (
+            <option key={service.uid} value={service.uid}>{service.type || 'service'} ({formatShortUid(service.uid)})</option>
+          ))}
+        </select>
+      </section>
+
+      <section className="explorer-layout">
+        <div className="affinity-list">
+          {filteredAffinities.length === 0 && <div className="empty">No affinities match your filters.</div>}
+          {filteredAffinities.map((affinity) => (
+            <button
+              key={affinity.triple_uid}
+              type="button"
+              className={`affinity-item ${selectedAffinityUid === affinity.triple_uid ? 'active' : ''}`}
+              onClick={() => setSelectedAffinityUid(affinity.triple_uid)}
+            >
+              <div className="affinity-item-header">
+                <h3>{getDatasetLabel(affinity.dataset_uid)}</h3>
+                <span className="mono">v{affinity.version ?? '-'}</span>
+              </div>
+              <p className="mono">{affinity.triple_uid}</p>
+              <div className="chip-group">
+                {renderChipList(affinity.endpoint_uids || [], getEndpointLabel)}
+              </div>
+              <div className="chip-group">
+                {renderChipList(affinity.service_uids || [], getServiceLabel)}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <aside className="affinity-detail">
+          {!selectedAffinity && <div className="empty">Select an affinity to inspect relationships.</div>}
+          {selectedAffinity && (
+            <>
+              <h2>{getDatasetLabel(selectedAffinity.dataset_uid)}</h2>
+              <p className="mono">Triple UID: {selectedAffinity.triple_uid}</p>
+              <p className="mono">Version: {selectedAffinity.version ?? '-'}</p>
+
+              <h4>Endpoints</h4>
+              <div className="chip-group">
+                {(selectedAffinity.endpoint_uids || []).length === 0 && <span className="empty-hint">None</span>}
+                {(selectedAffinity.endpoint_uids || []).map((uid) => (
+                  <span key={uid} className="entity-chip">{getEndpointLabel(uid)}</span>
+                ))}
+              </div>
+
+              <h4>Services</h4>
+              <div className="chip-group">
+                {(selectedAffinity.service_uids || []).length === 0 && <span className="empty-hint">None</span>}
+                {(selectedAffinity.service_uids || []).map((uid) => (
+                  <span key={uid} className="entity-chip">{getServiceLabel(uid)}</span>
+                ))}
+              </div>
+
+              <h4>Attributes</h4>
+              <pre>{selectedAffinity.attrs ? JSON.stringify(selectedAffinity.attrs, null, 2) : 'No attributes'}</pre>
+
+              <div className="detail-actions">
+                <button onClick={() => handleEdit(selectedAffinity)} className="btn-edit">Edit</button>
+                <button onClick={() => handleDelete(selectedAffinity.triple_uid)} className="btn-delete">Delete</button>
+              </div>
+            </>
+          )}
+        </aside>
+      </section>
 
       {showForm && (
         <div className="modal-overlay">
@@ -125,122 +381,105 @@ export function Affinities() {
                 <label>Dataset:</label>
                 <select
                   value={formData.dataset_uid || ''}
-                  onChange={(e) => setFormData({ ...formData, dataset_uid: e.target.value || undefined })}
+                  onChange={(event) => setFormData({ ...formData, dataset_uid: event.target.value || undefined })}
                 >
                   <option value="">No dataset</option>
-                  {datasets.map((ds) => (
-                    <option key={ds.uid} value={ds.uid}>{ds.title || ds.uid}</option>
+                  {datasets.map((dataset) => (
+                    <option key={dataset.uid} value={dataset.uid}>{dataset.title || `Dataset ${formatShortUid(dataset.uid)}`}</option>
                   ))}
                 </select>
               </div>
+
               <div className="form-group">
                 <label>Endpoints:</label>
                 <div className="checkbox-list">
-                  {endpoints.map((ep) => (
-                    <label key={ep.uid} className="checkbox-item">
+                  {endpoints.map((endpoint) => (
+                    <label key={endpoint.uid} className="checkbox-item">
                       <input
                         type="checkbox"
-                        checked={(formData.endpoint_uids || []).includes(ep.uid)}
+                        checked={(formData.endpoint_uids || []).includes(endpoint.uid)}
                         onChange={() => setFormData({
                           ...formData,
-                          endpoint_uids: toggleArrayItem(formData.endpoint_uids || [], ep.uid)
+                          endpoint_uids: toggleArrayItem(formData.endpoint_uids || [], endpoint.uid)
                         })}
                       />
-                      {ep.kind}
+                      {endpoint.kind} ({formatShortUid(endpoint.uid)})
                     </label>
                   ))}
                   {endpoints.length === 0 && <span className="empty-hint">No endpoints available</span>}
                 </div>
               </div>
+
               <div className="form-group">
                 <label>Services:</label>
                 <div className="checkbox-list">
-                  {services.map((svc) => (
-                    <label key={svc.uid} className="checkbox-item">
+                  {services.map((service) => (
+                    <label key={service.uid} className="checkbox-item">
                       <input
                         type="checkbox"
-                        checked={(formData.service_uids || []).includes(svc.uid)}
+                        checked={(formData.service_uids || []).includes(service.uid)}
                         onChange={() => setFormData({
                           ...formData,
-                          service_uids: toggleArrayItem(formData.service_uids || [], svc.uid)
+                          service_uids: toggleArrayItem(formData.service_uids || [], service.uid)
                         })}
                       />
-                      {svc.type || svc.uid}
+                      {service.type || 'service'} ({formatShortUid(service.uid)})
                     </label>
                   ))}
                   {services.length === 0 && <span className="empty-hint">No services available</span>}
                 </div>
               </div>
+
               <div className="form-group">
                 <label>Version:</label>
                 <input
                   type="number"
                   value={formData.version ?? ''}
-                  onChange={(e) => setFormData({ ...formData, version: e.target.value ? parseInt(e.target.value) : undefined })}
+                  onChange={(event) => setFormData({
+                    ...formData,
+                    version: event.target.value ? parseInt(event.target.value, 10) : undefined
+                  })}
                   min={1}
                   placeholder="Optional"
                 />
               </div>
+
               <div className="form-group">
                 <label>Attributes (JSON):</label>
                 <textarea
-                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
-                  onChange={(e) => {
+                  value={attrsText}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setAttrsText(value);
+
+                    if (!value.trim()) {
+                      setFormData({ ...formData, attrs: undefined });
+                      setAttrsError(null);
+                      return;
+                    }
+
                     try {
-                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      const attrs = JSON.parse(value);
                       setFormData({ ...formData, attrs });
+                      setAttrsError(null);
                     } catch {
-                      // Invalid JSON, keep current value
+                      setAttrsError('Must be valid JSON.');
                     }
                   }}
-                  rows={4}
-                  placeholder='{"key": "value"}'
+                  rows={6}
+                  placeholder='{"confidence": 0.95, "priority": "high"}'
                 />
+                {attrsError && <small className="field-error">{attrsError}</small>}
               </div>
+
               <div className="form-actions">
                 <button type="submit" className="btn-primary">Save</button>
-                <button type="button" onClick={handleCancel} className="btn-secondary">Cancel</button>
+                <button type="button" onClick={resetForm} className="btn-secondary">Cancel</button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Triple UID</th>
-            <th>Dataset</th>
-            <th>Endpoints</th>
-            <th>Services</th>
-            <th>Version</th>
-            <th>Attributes</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {affinities.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="empty">No affinities found</td>
-            </tr>
-          ) : (
-            affinities.map((aff) => (
-              <tr key={aff.triple_uid}>
-                <td className="uid">{aff.triple_uid}</td>
-                <td>{getDatasetTitle(aff.dataset_uid)}</td>
-                <td>{aff.endpoint_uids?.length || 0}</td>
-                <td>{aff.service_uids?.length || 0}</td>
-                <td>{aff.version ?? '-'}</td>
-                <td className="attrs">{aff.attrs ? JSON.stringify(aff.attrs) : '-'}</td>
-                <td className="actions">
-                  <button onClick={() => handleEdit(aff)} className="btn-edit">Edit</button>
-                  <button onClick={() => handleDelete(aff.triple_uid)} className="btn-delete">Delete</button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
     </div>
   );
 }

@@ -9,6 +9,8 @@ export function Services() {
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState<ServiceCreate>({});
+  const [metadataText, setMetadataText] = useState('');
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const fetchServices = async () => {
     try {
@@ -30,15 +32,25 @@ export function Services() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (metadataError) {
+      setError('Fix JSON errors in Metadata before saving.');
+      return;
+    }
     try {
+      const payload: ServiceCreate = {
+        ...formData,
+        metadata: metadataText.trim() ? JSON.parse(metadataText) : undefined
+      };
       if (editingService) {
-        await servicesApi.update(editingService.uid, formData);
+        await servicesApi.update(editingService.uid, payload);
       } else {
-        await servicesApi.create(formData);
+        await servicesApi.create(payload);
       }
       setShowForm(false);
       setEditingService(null);
       setFormData({});
+      setMetadataText('');
+      setMetadataError(null);
       fetchServices();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -56,6 +68,8 @@ export function Services() {
       source_ep: service.source_ep,
       metadata: service.metadata
     });
+    setMetadataText(service.metadata ? JSON.stringify(service.metadata, null, 2) : '');
+    setMetadataError(null);
     setShowForm(true);
   };
 
@@ -74,6 +88,8 @@ export function Services() {
     setShowForm(false);
     setEditingService(null);
     setFormData({});
+    setMetadataText('');
+    setMetadataError(null);
   };
 
   if (loading) return <div>Loading...</div>;
@@ -82,7 +98,16 @@ export function Services() {
     <div>
       <div className="page-header">
         <h1>Services</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            setEditingService(null);
+            setFormData({});
+            setMetadataText('');
+            setMetadataError(null);
+            setShowForm(true);
+          }}
+          className="btn-primary"
+        >
           Add Service
         </button>
       </div>
@@ -131,18 +156,29 @@ export function Services() {
               <div className="form-group">
                 <label>Metadata (JSON):</label>
                 <textarea
-                  value={formData.metadata ? JSON.stringify(formData.metadata, null, 2) : ''}
+                  value={metadataText}
                   onChange={(e) => {
+                    const value = e.target.value;
+                    setMetadataText(value);
+
+                    if (!value.trim()) {
+                      setFormData({ ...formData, metadata: undefined });
+                      setMetadataError(null);
+                      return;
+                    }
+
                     try {
-                      const metadata = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      const metadata = JSON.parse(value);
                       setFormData({ ...formData, metadata });
+                      setMetadataError(null);
                     } catch {
-                      // Invalid JSON, keep current value
+                      setMetadataError('Must be valid JSON.');
                     }
                   }}
                   rows={4}
                   placeholder='{"key": "value"}'
                 />
+                {metadataError && <small className="field-error">{metadataError}</small>}
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn-primary">Save</button>
