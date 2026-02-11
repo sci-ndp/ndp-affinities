@@ -33,6 +33,7 @@ services:
     container_name: ndp-affinities-api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-affinities}:${POSTGRES_PASSWORD:-affinities}@postgres:5432/${POSTGRES_DB:-affinities}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -40,7 +41,11 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
     container_name: ndp-affinities-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:80"

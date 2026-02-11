@@ -8,13 +8,18 @@ import {
   DatasetEndpoints,
   DatasetServices,
   ServiceEndpoints,
-  Affinities
+  Affinities,
+  GraphConnectivity,
+  GoldenRules
 } from './pages';
 import './App.css';
 
 function App() {
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const basename = baseUrl === '/' ? undefined : baseUrl.replace(/\/$/, '');
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
@@ -25,6 +30,8 @@ function App() {
           <Route path="dataset-services" element={<DatasetServices />} />
           <Route path="service-endpoints" element={<ServiceEndpoints />} />
           <Route path="affinities" element={<Affinities />} />
+          <Route path="graph-connectivity" element={<GraphConnectivity />} />
+          <Route path="golden-rules" element={<GoldenRules />} />
         </Route>
       </Routes>
     </BrowserRouter>

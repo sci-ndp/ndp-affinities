@@ -60,6 +60,7 @@ cp .env.example .env
 |----------|---------|-------------|
 | `FRONTEND_PORT` | `3000` | Exposed port |
 | `VITE_API_URL` | `http://localhost:8000` | API URL (used at build time) |
+| `VITE_BASE_PATH` | `/` | Frontend base path (e.g., `/affinity/` when hosted on a subpath) |
 
 ## Production Deployment
 
@@ -78,7 +79,29 @@ Production configuration notes:
 - Set strong passwords for `POSTGRES_USER` and `POSTGRES_PASSWORD`
 - Set `CORS_ORIGINS` to your frontend domain (e.g., `https://yourdomain.com`)
 - Set `VITE_API_URL` to your API URL (e.g., `https://api.yourdomain.com`)
+- Set `VITE_BASE_PATH` if hosting under a subpath (e.g., `/affinity/`)
 - Configure a reverse proxy (nginx, traefik) for HTTPS
+
+### Nginx Reverse Proxy (Subpath Example)
+
+If your app runs on VM `10.244.2.201` and you want:
+
+- Frontend at `https://vdc-192.chpc.utah.edu/affinity/`
+- API at `https://vdc-192.chpc.utah.edu/affinity-api/`
+
+Use `deploy/nginx/vdc-192-affinity.conf` on the reverse-proxy host and set:
+
+```bash
+VITE_BASE_PATH=/affinity/
+VITE_API_URL=/affinity-api
+CORS_ORIGINS=https://vdc-192.chpc.utah.edu
+```
+
+Then rebuild:
+
+```bash
+docker compose up -d --build frontend api
+```
 
 ## Local Development
 

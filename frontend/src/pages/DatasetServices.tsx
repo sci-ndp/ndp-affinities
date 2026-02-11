@@ -13,6 +13,8 @@ export function DatasetServices() {
     dataset_uid: '',
     service_uid: ''
   });
+  const [attrsText, setAttrsText] = useState('');
+  const [attrsError, setAttrsError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -40,10 +42,20 @@ export function DatasetServices() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (attrsError) {
+      setError('Fix JSON errors in Attributes before saving.');
+      return;
+    }
     try {
-      await datasetServicesApi.create(formData);
+      const payload: DatasetServiceCreate = {
+        ...formData,
+        attrs: attrsText.trim() ? JSON.parse(attrsText) : undefined
+      };
+      await datasetServicesApi.create(payload);
       setShowForm(false);
       setFormData({ dataset_uid: '', service_uid: '' });
+      setAttrsText('');
+      setAttrsError(null);
       fetchData();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -66,6 +78,8 @@ export function DatasetServices() {
   const handleCancel = () => {
     setShowForm(false);
     setFormData({ dataset_uid: '', service_uid: '' });
+    setAttrsText('');
+    setAttrsError(null);
   };
 
   const getDatasetTitle = (uid: string) => {
@@ -84,7 +98,15 @@ export function DatasetServices() {
     <div>
       <div className="page-header">
         <h1>Dataset-Services</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button
+          onClick={() => {
+            setFormData({ dataset_uid: '', service_uid: '' });
+            setAttrsText('');
+            setAttrsError(null);
+            setShowForm(true);
+          }}
+          className="btn-primary"
+        >
           Add Relationship
         </button>
       </div>
@@ -133,18 +155,29 @@ export function DatasetServices() {
               <div className="form-group">
                 <label>Attributes (JSON):</label>
                 <textarea
-                  value={formData.attrs ? JSON.stringify(formData.attrs, null, 2) : ''}
+                  value={attrsText}
                   onChange={(e) => {
+                    const value = e.target.value;
+                    setAttrsText(value);
+
+                    if (!value.trim()) {
+                      setFormData({ ...formData, attrs: undefined });
+                      setAttrsError(null);
+                      return;
+                    }
+
                     try {
-                      const attrs = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      const attrs = JSON.parse(value);
                       setFormData({ ...formData, attrs });
+                      setAttrsError(null);
                     } catch {
-                      // Invalid JSON, keep current value
+                      setAttrsError('Must be valid JSON.');
                     }
                   }}
                   rows={4}
                   placeholder='{"key": "value"}'
                 />
+                {attrsError && <small className="field-error">{attrsError}</small>}
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn-primary">Save</button>
