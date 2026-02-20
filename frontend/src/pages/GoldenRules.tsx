@@ -74,15 +74,6 @@ export function GoldenRules() {
         ))}
       </section>
 
-      <section className="card">
-        <h3>Recommended Live Demo Order</h3>
-        <ol className="demo-order">
-          <li>Open Golden Rules and frame the five principles.</li>
-          <li>Jump to Graph Connectivity and show pairwise vs triple overlay modes.</li>
-          <li>Open Affinity Explorer and inspect one versioned triple in detail.</li>
-          <li>Return to Dashboard to show central coverage/readiness and scripted rollout confidence.</li>
-        </ol>
-      </section>
     </div>
   );
 }
