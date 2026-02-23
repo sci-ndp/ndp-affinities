@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { datasetEndpointsApi, datasetsApi, endpointsApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { DatasetEndpoint, DatasetEndpointCreate, Dataset, Endpoint } from '../types';
 
 export function DatasetEndpoints() {
@@ -8,6 +9,9 @@ export function DatasetEndpoints() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [hasNext, setHasNext] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<DatasetEndpointCreate>({
     dataset_uid: '',
@@ -15,16 +19,25 @@ export function DatasetEndpoints() {
   });
   const [attrsText, setAttrsText] = useState('');
   const [attrsError, setAttrsError] = useState<string | null>(null);
+  const lookupLimit = 1000;
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [relRes, dsRes, epRes] = await Promise.all([
-        datasetEndpointsApi.list(),
-        datasetsApi.list(),
-        endpointsApi.list()
+        datasetEndpointsApi.list({
+          skip: (page - 1) * pageSize,
+          limit: pageSize
+        }),
+        datasetsApi.list({ limit: lookupLimit }),
+        endpointsApi.list({ limit: lookupLimit })
       ]);
+      if (page > 1 && relRes.data.length === 0) {
+        setPage(page - 1);
+        return;
+      }
       setRelations(relRes.data);
+      setHasNext(relRes.data.length === pageSize);
       setDatasets(dsRes.data);
       setEndpoints(epRes.data);
       setError(null);
@@ -38,7 +51,7 @@ export function DatasetEndpoints() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, pageSize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +231,18 @@ export function DatasetEndpoints() {
           )}
         </tbody>
       </table>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        itemCount={relations.length}
+        hasNext={hasNext}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        onPageSizeChange={(nextSize) => {
+          setPage(1);
+          setPageSize(nextSize);
+        }}
+      />
     </div>
   );
 }

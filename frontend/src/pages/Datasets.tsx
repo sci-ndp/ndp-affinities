@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { datasetsApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { Dataset, DatasetCreate } from '../types';
 
 export function Datasets() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [hasNext, setHasNext] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
   const [formData, setFormData] = useState<DatasetCreate>({});
@@ -15,8 +19,16 @@ export function Datasets() {
   const fetchDatasets = async () => {
     try {
       setLoading(true);
-      const response = await datasetsApi.list();
+      const response = await datasetsApi.list({
+        skip: (page - 1) * pageSize,
+        limit: pageSize
+      });
+      if (page > 1 && response.data.length === 0) {
+        setPage(page - 1);
+        return;
+      }
       setDatasets(response.data);
+      setHasNext(response.data.length === pageSize);
       setError(null);
     } catch (err) {
       setError('Failed to fetch datasets');
@@ -28,7 +40,7 @@ export function Datasets() {
 
   useEffect(() => {
     fetchDatasets();
-  }, []);
+  }, [page, pageSize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,6 +212,18 @@ export function Datasets() {
           )}
         </tbody>
       </table>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        itemCount={datasets.length}
+        hasNext={hasNext}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        onPageSizeChange={(nextSize) => {
+          setPage(1);
+          setPageSize(nextSize);
+        }}
+      />
     </div>
   );
 }

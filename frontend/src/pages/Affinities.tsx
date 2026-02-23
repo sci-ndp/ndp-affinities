@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { affinitiesApi, datasetsApi, endpointsApi, servicesApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { Affinity, AffinityCreate, Dataset, Endpoint, Service } from '../types';
 
 const CHIP_PREVIEW_LIMIT = 3;
+const FETCH_LIMIT = 1000;
 
 function formatShortUid(uid: string): string {
   return uid.slice(0, 8);
@@ -24,6 +26,8 @@ export function Affinities() {
   const [showForm, setShowForm] = useState(false);
   const [editingAffinity, setEditingAffinity] = useState<Affinity | null>(null);
   const [selectedAffinityUid, setSelectedAffinityUid] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
 
   const initialDatasetFilter = searchParams.get('dataset_uid') || '';
   const [query, setQuery] = useState('');
@@ -35,24 +39,38 @@ export function Affinities() {
   const [attrsText, setAttrsText] = useState('');
   const [attrsError, setAttrsError] = useState<string | null>(null);
 
+  const fetchAll = async <T,>(
+    listFn: (params?: { skip?: number; limit?: number }) => Promise<{ data: T[] }>
+  ): Promise<T[]> => {
+    const all: T[] = [];
+    let skip = 0;
+    while (true) {
+      const response = await listFn({ skip, limit: FETCH_LIMIT });
+      all.push(...response.data);
+      if (response.data.length < FETCH_LIMIT) break;
+      skip += FETCH_LIMIT;
+    }
+    return all;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [affRes, dsRes, epRes, svcRes] = await Promise.all([
-        affinitiesApi.list(),
-        datasetsApi.list(),
-        endpointsApi.list(),
-        servicesApi.list()
+      const [affData, dsData, epData, svcData] = await Promise.all([
+        fetchAll(affinitiesApi.list),
+        fetchAll(datasetsApi.list),
+        fetchAll(endpointsApi.list),
+        fetchAll(servicesApi.list)
       ]);
-      const sortedAffinities = [...affRes.data].sort((a, b) => {
+      const sortedAffinities = [...affData].sort((a, b) => {
         const aTime = new Date(a.updated_at).getTime();
         const bTime = new Date(b.updated_at).getTime();
         return bTime - aTime;
       });
       setAffinities(sortedAffinities);
-      setDatasets(dsRes.data);
-      setEndpoints(epRes.data);
-      setServices(svcRes.data);
+      setDatasets(dsData);
+      setEndpoints(epData);
+      setServices(svcData);
       setError(null);
     } catch (err) {
       setError('Failed to fetch data');
@@ -123,18 +141,32 @@ export function Affinities() {
   ]);
 
   useEffect(() => {
-    if (filteredAffinities.length === 0) {
+    setPage(1);
+  }, [query, datasetFilter, endpointFilter, serviceFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAffinities.length / pageSize));
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const startIndex = (page - 1) * pageSize;
+  const pagedAffinities = filteredAffinities.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    if (pagedAffinities.length === 0) {
       setSelectedAffinityUid(null);
       return;
     }
 
-    const selectedStillExists = filteredAffinities.some((affinity) => affinity.triple_uid === selectedAffinityUid);
+    const selectedStillExists = pagedAffinities.some((affinity) => affinity.triple_uid === selectedAffinityUid);
     if (!selectedStillExists) {
-      setSelectedAffinityUid(filteredAffinities[0].triple_uid);
+      setSelectedAffinityUid(pagedAffinities[0].triple_uid);
     }
-  }, [filteredAffinities, selectedAffinityUid]);
+  }, [pagedAffinities, selectedAffinityUid]);
 
-  const selectedAffinity = filteredAffinities.find((affinity) => affinity.triple_uid === selectedAffinityUid) || null;
+  const selectedAffinity = pagedAffinities.find((affinity) => affinity.triple_uid === selectedAffinityUid) || null;
 
   const metrics = useMemo(() => {
     const datasetsCovered = new Set(filteredAffinities.map((affinity) => affinity.dataset_uid).filter(Boolean));
@@ -318,8 +350,8 @@ export function Affinities() {
 
       <section className="explorer-layout">
         <div className="affinity-list">
-          {filteredAffinities.length === 0 && <div className="empty">No affinities match your filters.</div>}
-          {filteredAffinities.map((affinity) => (
+          {pagedAffinities.length === 0 && <div className="empty">No affinities match your filters.</div>}
+          {pagedAffinities.map((affinity) => (
             <button
               key={affinity.triple_uid}
               type="button"
@@ -339,6 +371,18 @@ export function Affinities() {
               </div>
             </button>
           ))}
+
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            itemCount={pagedAffinities.length}
+            totalCount={filteredAffinities.length}
+            onPageChange={(nextPage) => setPage(nextPage)}
+            onPageSizeChange={(nextSize) => {
+              setPage(1);
+              setPageSize(nextSize);
+            }}
+          />
         </div>
 
         <aside className="affinity-detail">

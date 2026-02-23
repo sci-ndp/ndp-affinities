@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class LinkedNode(BaseModel):
     uid: UUID
     name: str | None = None
+    ckan_name: str | None = None
 
 
 class LinkedEntitiesResponse(BaseModel):

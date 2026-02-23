@@ -29,6 +29,8 @@ function shortUid(uid: string): string {
   return uid.slice(0, 8);
 }
 
+const FETCH_LIMIT = 1000;
+
 const DEMO_STEPS = [
   {
     title: 'Nodes',
@@ -71,34 +73,48 @@ export function Dashboard() {
   const [demoStep, setDemoStep] = useState(0);
 
   useEffect(() => {
+    const fetchAll = async <T,>(
+      listFn: (params?: { skip?: number; limit?: number }) => Promise<{ data: T[] }>
+    ): Promise<T[]> => {
+      const all: T[] = [];
+      let skip = 0;
+      while (true) {
+        const response = await listFn({ skip, limit: FETCH_LIMIT });
+        all.push(...response.data);
+        if (response.data.length < FETCH_LIMIT) break;
+        skip += FETCH_LIMIT;
+      }
+      return all;
+    };
+
     const fetchData = async () => {
       try {
         setLoading(true);
         const [
-          affRes,
-          dsRes,
-          epRes,
-          svcRes,
-          dsEpRes,
-          dsSvcRes,
-          svcEpRes
+          affinitiesData,
+          datasetsData,
+          endpointsData,
+          servicesData,
+          datasetEndpointsData,
+          datasetServicesData,
+          serviceEndpointsData
         ] = await Promise.all([
-          affinitiesApi.list(),
-          datasetsApi.list(),
-          endpointsApi.list(),
-          servicesApi.list(),
-          datasetEndpointsApi.list(),
-          datasetServicesApi.list(),
-          serviceEndpointsApi.list()
+          fetchAll(affinitiesApi.list),
+          fetchAll(datasetsApi.list),
+          fetchAll(endpointsApi.list),
+          fetchAll(servicesApi.list),
+          fetchAll(datasetEndpointsApi.list),
+          fetchAll(datasetServicesApi.list),
+          fetchAll(serviceEndpointsApi.list)
         ]);
 
-        setAffinities(affRes.data);
-        setDatasets(dsRes.data);
-        setEndpoints(epRes.data);
-        setServices(svcRes.data);
-        setDatasetEndpoints(dsEpRes.data);
-        setDatasetServices(dsSvcRes.data);
-        setServiceEndpoints(svcEpRes.data);
+        setAffinities(affinitiesData);
+        setDatasets(datasetsData);
+        setEndpoints(endpointsData);
+        setServices(servicesData);
+        setDatasetEndpoints(datasetEndpointsData);
+        setDatasetServices(datasetServicesData);
+        setServiceEndpoints(serviceEndpointsData);
         setError(null);
       } catch (err) {
         setError('Failed to load dashboard data');

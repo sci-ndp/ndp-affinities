@@ -25,6 +25,13 @@ def _endpoint_display_name(endpoint: Endpoint) -> str:
 def _service_display_name(service: Service) -> str:
     return service.type or service.openapi_url or str(service.uid)
 
+def _ckan_name(metadata: dict | None) -> str:
+    if isinstance(metadata, dict):
+        value = metadata.get("ckan_name")
+        if value:
+            return str(value)
+    return "none"
+
 
 def _build_linked_entities(uid: UUID, db: Session) -> LinkedEntitiesResponse:
     dataset = db.query(Dataset).filter(Dataset.uid == uid).first()
@@ -108,15 +115,29 @@ def _build_linked_entities(uid: UUID, db: Session) -> LinkedEntitiesResponse:
         input_uid=uid,
         input_type=input_type,
         datasets=sorted(
-            [LinkedNode(uid=item.uid, name=item.title) for item in datasets],
+            [LinkedNode(uid=item.uid, name=item.title, ckan_name=_ckan_name(item.metadata_)) for item in datasets],
             key=lambda x: str(x.uid),
         ),
         endpoints=sorted(
-            [LinkedNode(uid=item.uid, name=_endpoint_display_name(item)) for item in endpoints],
+            [
+                LinkedNode(
+                    uid=item.uid,
+                    name=_endpoint_display_name(item),
+                    ckan_name=_ckan_name(item.metadata_),
+                )
+                for item in endpoints
+            ],
             key=lambda x: str(x.uid),
         ),
         services=sorted(
-            [LinkedNode(uid=item.uid, name=_service_display_name(item)) for item in services],
+            [
+                LinkedNode(
+                    uid=item.uid,
+                    name=_service_display_name(item),
+                    ckan_name=_ckan_name(item.metadata_),
+                )
+                for item in services
+            ],
             key=lambda x: str(x.uid),
         ),
     )
