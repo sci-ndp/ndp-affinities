@@ -11,7 +11,7 @@ from app.models.dataset_service import DatasetService
 from app.models.endpoint import Endpoint
 from app.models.service import Service
 from app.models.service_endpoint import ServiceEndpoint
-from app.schemas.linked import LinkedEntitiesResponse, LinkedNode
+from app.schemas.linked import LinkedEntitiesBatchRequest, LinkedEntitiesResponse, LinkedNode
 
 router = APIRouter(prefix="/linked", tags=["linked"])
 
@@ -26,8 +26,7 @@ def _service_display_name(service: Service) -> str:
     return service.type or service.openapi_url or str(service.uid)
 
 
-@router.get("/{uid}", response_model=LinkedEntitiesResponse)
-def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
+def _build_linked_entities(uid: UUID, db: Session) -> LinkedEntitiesResponse:
     dataset = db.query(Dataset).filter(Dataset.uid == uid).first()
     endpoint = db.query(Endpoint).filter(Endpoint.uid == uid).first()
     service = db.query(Service).filter(Service.uid == uid).first()
@@ -121,3 +120,13 @@ def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
             key=lambda x: str(x.uid),
         ),
     )
+
+
+@router.get("/{uid}", response_model=LinkedEntitiesResponse)
+def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
+    return _build_linked_entities(uid, db)
+
+
+@router.post("/batch", response_model=list[LinkedEntitiesResponse])
+def get_linked_entities_batch(payload: LinkedEntitiesBatchRequest, db: Session = Depends(get_db)):
+    return [_build_linked_entities(uid, db) for uid in payload.uids]

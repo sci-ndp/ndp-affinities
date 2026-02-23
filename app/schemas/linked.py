@@ -15,3 +15,7 @@ class LinkedEntitiesResponse(BaseModel):
     datasets: list[LinkedNode]
     endpoints: list[LinkedNode]
     services: list[LinkedNode]
+
+
+class LinkedEntitiesBatchRequest(BaseModel):
+    uids: list[UUID]
