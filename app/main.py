@@ -14,14 +14,15 @@ from app.routers import (
     dataset_services_router,
     service_endpoints_router,
     affinities_router,
+    linked_router,
 )
 
 app = FastAPI(
     title="NDP Affinities API",
     description="API for managing NDP affinities data",
     version="0.1.0",
+    root_path="/affinity-api",
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
@@ -56,6 +57,7 @@ app.include_router(dataset_endpoints_router)
 app.include_router(dataset_services_router)
 app.include_router(service_endpoints_router)
 app.include_router(affinities_router)
+app.include_router(linked_router)
 
 
 @app.get("/health")

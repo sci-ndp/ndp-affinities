@@ -5,6 +5,7 @@ from app.routers.dataset_endpoints import router as dataset_endpoints_router
 from app.routers.dataset_services import router as dataset_services_router
 from app.routers.service_endpoints import router as service_endpoints_router
 from app.routers.affinities import router as affinities_router
+from app.routers.linked import router as linked_router
 
 __all__ = [
     "endpoints_router",
@@ -14,4 +15,5 @@ __all__ = [
     "dataset_services_router",
     "service_endpoints_router",
     "affinities_router",
+    "linked_router",
 ]
