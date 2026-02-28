@@ -285,3 +285,54 @@ Stores affinity combinations (dataset + endpoints + services).
 └── sql/
     └── migrations/
 ```
+
+## All-in-One Docker Image
+
+Single container with PostgreSQL + API + Frontend.
+
+### Quick Start
+
+```bash
+docker run -d -p 80:80 -v affinities-data:/var/lib/postgresql/data rbardaji/ndp-affinities
+```
+
+### Custom Configuration
+
+```bash
+docker run -d -p 80:80 \
+  -e POSTGRES_USER=myuser \
+  -e POSTGRES_PASSWORD=mysecretpass \
+  -e POSTGRES_DB=mydb \
+  -v affinities-data:/var/lib/postgresql/data \
+  rbardaji/ndp-affinities
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_USER` | `affinities` | Database user |
+| `POSTGRES_PASSWORD` | `affinities` | Database password |
+| `POSTGRES_DB` | `affinities` | Database name |
+
+### Access
+
+- **Frontend:** http://localhost
+- **API:** http://localhost/api/
+- **API Docs:** http://localhost/api/docs
+- **Health:** http://localhost/api/health
+
+### API Examples
+
+```bash
+# List endpoints
+curl http://localhost/api/ep
+
+# Create endpoint
+curl -X POST http://localhost/api/ep \
+  -H "Content-Type: application/json" \
+  -d '{"kind": "ckan", "url": "http://example.com"}'
+
+# Get datasets
+curl http://localhost/api/datasets
+```
