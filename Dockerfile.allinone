@@ -1,0 +1,56 @@
+# Stage 1: Build frontend
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ .
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=${VITE_API_URL}
+RUN npm run build
+
+# Stage 2: Final image with PostgreSQL + API + Frontend
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install nginx, supervisor, and postgresql
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nginx supervisor postgresql postgresql-contrib && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy API code
+COPY app ./app
+
+# Copy SQL migrations
+COPY sql ./sql
+
+# Copy frontend build
+COPY --from=frontend-builder /app/frontend/dist /usr/share/nginx/html
+
+# Copy configs
+COPY deploy/nginx-allinone.conf /etc/nginx/sites-available/default
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Setup nginx
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Setup PostgreSQL directories
+RUN mkdir -p /var/run/postgresql && \
+    chown -R postgres:postgres /var/run/postgresql && \
+    chmod 755 /var/run/postgresql
+
+# Data volume for PostgreSQL
+VOLUME /var/lib/postgresql/data
+
+EXPOSE 80
+
+# Entrypoint script
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
