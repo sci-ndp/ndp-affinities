@@ -113,6 +113,54 @@ h4 {
   font-size: 2rem;
 }
 
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.pagination-info {
+  display: flex;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pagination-page {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.pagination-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.pagination-size select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
 .lead {
   color: var(--ink-muted);
   margin-top: 8px;

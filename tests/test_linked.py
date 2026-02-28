@@ -73,6 +73,21 @@ def test_get_linked_for_service(client):
     assert service_2["uid"] in service_uids
 
 
+def test_get_linked_batch(client):
+    dataset, endpoint_1, endpoint_2, service_1, service_2 = _seed_graph(client)
+
+    response = client.post("/linked/batch", json={"uids": [dataset["uid"], endpoint_1["uid"]]})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert isinstance(body, list)
+    assert len(body) == 2
+    assert body[0]["input_uid"] == dataset["uid"]
+    assert body[0]["input_type"] == "dataset"
+    assert body[1]["input_uid"] == endpoint_1["uid"]
+    assert body[1]["input_type"] == "endpoint"
+
+
 def test_get_linked_not_found(client):
     response = client.get("/linked/00000000-0000-0000-0000-000000000000")
     assert response.status_code == 404

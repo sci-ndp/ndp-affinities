@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { serviceEndpointsApi, servicesApi, endpointsApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { ServiceEndpoint, ServiceEndpointCreate, Service, Endpoint } from '../types';
 
 export function ServiceEndpoints() {
@@ -8,6 +9,9 @@ export function ServiceEndpoints() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [hasNext, setHasNext] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<ServiceEndpointCreate>({
     service_uid: '',
@@ -15,16 +19,25 @@ export function ServiceEndpoints() {
   });
   const [attrsText, setAttrsText] = useState('');
   const [attrsError, setAttrsError] = useState<string | null>(null);
+  const lookupLimit = 1000;
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [relRes, svcRes, epRes] = await Promise.all([
-        serviceEndpointsApi.list(),
-        servicesApi.list(),
-        endpointsApi.list()
+        serviceEndpointsApi.list({
+          skip: (page - 1) * pageSize,
+          limit: pageSize
+        }),
+        servicesApi.list({ limit: lookupLimit }),
+        endpointsApi.list({ limit: lookupLimit })
       ]);
+      if (page > 1 && relRes.data.length === 0) {
+        setPage(page - 1);
+        return;
+      }
       setRelations(relRes.data);
+      setHasNext(relRes.data.length === pageSize);
       setServices(svcRes.data);
       setEndpoints(epRes.data);
       setError(null);
@@ -38,7 +51,7 @@ export function ServiceEndpoints() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, pageSize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,6 +231,18 @@ export function ServiceEndpoints() {
           )}
         </tbody>
       </table>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        itemCount={relations.length}
+        hasNext={hasNext}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        onPageSizeChange={(nextSize) => {
+          setPage(1);
+          setPageSize(nextSize);
+        }}
+      />
     </div>
   );
 }

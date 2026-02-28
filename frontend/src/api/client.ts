@@ -20,7 +20,7 @@ const api = axios.create({
 
 // Endpoints
 export const endpointsApi = {
-  list: () => api.get<Endpoint[]>('/ep'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<Endpoint[]>('/ep', { params }),
   get: (uid: string) => api.get<Endpoint>(`/ep/${uid}`),
   create: (data: EndpointCreate) => api.post<Endpoint>('/ep', data),
   update: (uid: string, data: EndpointUpdate) => api.put<Endpoint>(`/ep/${uid}`, data),
@@ -29,7 +29,7 @@ export const endpointsApi = {
 
 // Datasets
 export const datasetsApi = {
-  list: () => api.get<Dataset[]>('/datasets'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<Dataset[]>('/datasets', { params }),
   get: (uid: string) => api.get<Dataset>(`/datasets/${uid}`),
   create: (data: DatasetCreate) => api.post<Dataset>('/datasets', data),
   update: (uid: string, data: DatasetUpdate) => api.put<Dataset>(`/datasets/${uid}`, data),
@@ -38,7 +38,7 @@ export const datasetsApi = {
 
 // Services
 export const servicesApi = {
-  list: () => api.get<Service[]>('/services'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<Service[]>('/services', { params }),
   get: (uid: string) => api.get<Service>(`/services/${uid}`),
   create: (data: ServiceCreate) => api.post<Service>('/services', data),
   update: (uid: string, data: ServiceUpdate) => api.put<Service>(`/services/${uid}`, data),
@@ -47,7 +47,7 @@ export const servicesApi = {
 
 // Dataset-Endpoints
 export const datasetEndpointsApi = {
-  list: () => api.get<DatasetEndpoint[]>('/dataset-endpoints'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<DatasetEndpoint[]>('/dataset-endpoints', { params }),
   get: (datasetUid: string, endpointUid: string) =>
     api.get<DatasetEndpoint>(`/dataset-endpoints/${datasetUid}/${endpointUid}`),
   create: (data: DatasetEndpointCreate) => api.post<DatasetEndpoint>('/dataset-endpoints', data),
@@ -57,7 +57,7 @@ export const datasetEndpointsApi = {
 
 // Dataset-Services
 export const datasetServicesApi = {
-  list: () => api.get<DatasetService[]>('/dataset-services'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<DatasetService[]>('/dataset-services', { params }),
   get: (datasetUid: string, serviceUid: string) =>
     api.get<DatasetService>(`/dataset-services/${datasetUid}/${serviceUid}`),
   create: (data: DatasetServiceCreate) => api.post<DatasetService>('/dataset-services', data),
@@ -67,7 +67,7 @@ export const datasetServicesApi = {
 
 // Service-Endpoints
 export const serviceEndpointsApi = {
-  list: () => api.get<ServiceEndpoint[]>('/service-endpoints'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<ServiceEndpoint[]>('/service-endpoints', { params }),
   get: (serviceUid: string, endpointUid: string) =>
     api.get<ServiceEndpoint>(`/service-endpoints/${serviceUid}/${endpointUid}`),
   create: (data: ServiceEndpointCreate) => api.post<ServiceEndpoint>('/service-endpoints', data),
@@ -77,7 +77,7 @@ export const serviceEndpointsApi = {
 
 // Affinities
 export const affinitiesApi = {
-  list: () => api.get<Affinity[]>('/affinities'),
+  list: (params?: { skip?: number; limit?: number }) => api.get<Affinity[]>('/affinities', { params }),
   get: (uid: string) => api.get<Affinity>(`/affinities/${uid}`),
   create: (data: AffinityCreate) => api.post<Affinity>('/affinities', data),
   update: (uid: string, data: AffinityUpdate) => api.put<Affinity>(`/affinities/${uid}`, data),

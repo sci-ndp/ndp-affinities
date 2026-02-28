@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class LinkedNode(BaseModel):
     uid: UUID
     name: str | None = None
+    ckan_name: str | None = None
 
 
 class LinkedEntitiesResponse(BaseModel):
@@ -15,3 +16,7 @@ class LinkedEntitiesResponse(BaseModel):
     datasets: list[LinkedNode]
     endpoints: list[LinkedNode]
     services: list[LinkedNode]
+
+
+class LinkedEntitiesBatchRequest(BaseModel):
+    uids: list[UUID]

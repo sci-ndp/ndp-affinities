@@ -11,7 +11,7 @@ from app.models.dataset_service import DatasetService
 from app.models.endpoint import Endpoint
 from app.models.service import Service
 from app.models.service_endpoint import ServiceEndpoint
-from app.schemas.linked import LinkedEntitiesResponse, LinkedNode
+from app.schemas.linked import LinkedEntitiesBatchRequest, LinkedEntitiesResponse, LinkedNode
 
 router = APIRouter(prefix="/linked", tags=["linked"])
 
@@ -25,9 +25,15 @@ def _endpoint_display_name(endpoint: Endpoint) -> str:
 def _service_display_name(service: Service) -> str:
     return service.type or service.openapi_url or str(service.uid)
 
+def _ckan_name(metadata: dict | None) -> str:
+    if isinstance(metadata, dict):
+        value = metadata.get("ckan_name")
+        if value:
+            return str(value)
+    return "none"
 
-@router.get("/{uid}", response_model=LinkedEntitiesResponse)
-def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
+
+def _build_linked_entities(uid: UUID, db: Session) -> LinkedEntitiesResponse:
     dataset = db.query(Dataset).filter(Dataset.uid == uid).first()
     endpoint = db.query(Endpoint).filter(Endpoint.uid == uid).first()
     service = db.query(Service).filter(Service.uid == uid).first()
@@ -109,15 +115,39 @@ def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
         input_uid=uid,
         input_type=input_type,
         datasets=sorted(
-            [LinkedNode(uid=item.uid, name=item.title) for item in datasets],
+            [LinkedNode(uid=item.uid, name=item.title, ckan_name=_ckan_name(item.metadata_)) for item in datasets],
             key=lambda x: str(x.uid),
         ),
         endpoints=sorted(
-            [LinkedNode(uid=item.uid, name=_endpoint_display_name(item)) for item in endpoints],
+            [
+                LinkedNode(
+                    uid=item.uid,
+                    name=_endpoint_display_name(item),
+                    ckan_name=_ckan_name(item.metadata_),
+                )
+                for item in endpoints
+            ],
             key=lambda x: str(x.uid),
         ),
         services=sorted(
-            [LinkedNode(uid=item.uid, name=_service_display_name(item)) for item in services],
+            [
+                LinkedNode(
+                    uid=item.uid,
+                    name=_service_display_name(item),
+                    ckan_name=_ckan_name(item.metadata_),
+                )
+                for item in services
+            ],
             key=lambda x: str(x.uid),
         ),
     )
+
+
+@router.get("/{uid}", response_model=LinkedEntitiesResponse)
+def get_linked_entities(uid: UUID, db: Session = Depends(get_db)):
+    return _build_linked_entities(uid, db)
+
+
+@router.post("/batch", response_model=list[LinkedEntitiesResponse])
+def get_linked_entities_batch(payload: LinkedEntitiesBatchRequest, db: Session = Depends(get_db)):
+    return [_build_linked_entities(uid, db) for uid in payload.uids]

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { endpointsApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { Endpoint, EndpointCreate } from '../types';
 
 export function Endpoints() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [hasNext, setHasNext] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
   const [formData, setFormData] = useState<EndpointCreate>({ kind: '' });
@@ -15,8 +19,16 @@ export function Endpoints() {
   const fetchEndpoints = async () => {
     try {
       setLoading(true);
-      const response = await endpointsApi.list();
+      const response = await endpointsApi.list({
+        skip: (page - 1) * pageSize,
+        limit: pageSize
+      });
+      if (page > 1 && response.data.length === 0) {
+        setPage(page - 1);
+        return;
+      }
       setEndpoints(response.data);
+      setHasNext(response.data.length === pageSize);
       setError(null);
     } catch (err) {
       setError('Failed to fetch endpoints');
@@ -28,7 +40,7 @@ export function Endpoints() {
 
   useEffect(() => {
     fetchEndpoints();
-  }, []);
+  }, [page, pageSize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +225,18 @@ export function Endpoints() {
           )}
         </tbody>
       </table>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        itemCount={endpoints.length}
+        hasNext={hasNext}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        onPageSizeChange={(nextSize) => {
+          setPage(1);
+          setPageSize(nextSize);
+        }}
+      />
     </div>
   );
 }

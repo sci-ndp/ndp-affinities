@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { servicesApi } from '../api/client';
+import { Pagination } from '../components/Pagination';
 import type { Service, ServiceCreate } from '../types';
 
 export function Services() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [hasNext, setHasNext] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [formData, setFormData] = useState<ServiceCreate>({});
@@ -15,8 +19,16 @@ export function Services() {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const response = await servicesApi.list();
+      const response = await servicesApi.list({
+        skip: (page - 1) * pageSize,
+        limit: pageSize
+      });
+      if (page > 1 && response.data.length === 0) {
+        setPage(page - 1);
+        return;
+      }
       setServices(response.data);
+      setHasNext(response.data.length === pageSize);
       setError(null);
     } catch (err) {
       setError('Failed to fetch services');
@@ -28,7 +40,7 @@ export function Services() {
 
   useEffect(() => {
     fetchServices();
-  }, []);
+  }, [page, pageSize]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +236,18 @@ export function Services() {
           )}
         </tbody>
       </table>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        itemCount={services.length}
+        hasNext={hasNext}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        onPageSizeChange={(nextSize) => {
+          setPage(1);
+          setPageSize(nextSize);
+        }}
+      />
     </div>
   );
 }
