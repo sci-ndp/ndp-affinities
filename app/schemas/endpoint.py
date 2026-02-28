@@ -8,14 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class EndpointCreate(BaseModel):
     kind: str
     url: str | None = None
-    source_ep: str | None = None
     metadata: dict[str, Any] | None = None
 
 
 class EndpointUpdate(BaseModel):
     kind: str | None = None
     url: str | None = None
-    source_ep: str | None = None
     metadata: dict[str, Any] | None = None
 
 
