@@ -29,7 +29,6 @@ def create_endpoint(endpoint_in: EndpointCreate, db: Session = Depends(get_db)):
     endpoint = Endpoint(
         kind=endpoint_in.kind,
         url=endpoint_in.url,
-        source_ep=endpoint_in.source_ep,
         metadata_=endpoint_in.metadata,
     )
     db.add(endpoint)
