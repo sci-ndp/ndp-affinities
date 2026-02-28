@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- API tutorial Jupyter Notebook (docs/api_tutorial_v0.1.1.ipynb)
+
 ## [0.1.1] - 2026-02-28
 
 ### Changed
