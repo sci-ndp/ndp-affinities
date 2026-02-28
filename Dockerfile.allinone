@@ -1,0 +1,39 @@
+# Use existing local images as base
+FROM ndp-affinities-frontend:latest AS frontend
+
+FROM ndp-affinities-api:latest
+
+# Install nginx, supervisor, and postgresql
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nginx supervisor postgresql postgresql-contrib && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy frontend build from existing frontend image
+COPY --from=frontend /usr/share/nginx/html /usr/share/nginx/html
+
+# Copy SQL migrations
+COPY sql /app/sql
+
+# Copy configs
+COPY deploy/nginx-allinone.conf /etc/nginx/sites-available/default
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Setup nginx
+RUN rm -f /etc/nginx/sites-enabled/default && \
+    ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Setup PostgreSQL directories
+RUN mkdir -p /var/run/postgresql && \
+    chown -R postgres:postgres /var/run/postgresql && \
+    chmod 755 /var/run/postgresql
+
+# Data volume for PostgreSQL
+VOLUME /var/lib/postgresql/data
+
+EXPOSE 80
+
+# Entrypoint script
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
