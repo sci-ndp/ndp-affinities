@@ -43,10 +43,10 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
     container_name: ndp-affinities-frontend
+    environment:
+      ROOT_PATH: ${ROOT_PATH:-/}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
