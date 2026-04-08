@@ -15,8 +15,8 @@ import {
 import './App.css';
 
 function App() {
-  const baseUrl = import.meta.env.BASE_URL || '/';
-  const basename = baseUrl === '/' ? undefined : baseUrl.replace(/\/$/, '');
+  const basePath = (window as any).__AFFINITIES_CONFIG__?.rootPath ?? '/';
+  const basename = basePath === '/' ? undefined : basePath.replace(/\/$/, '');
 
   return (
     <BrowserRouter basename={basename}>

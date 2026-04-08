@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-08
+
+### Changed
+- Switch frontend from build-time to runtime environment variables
+- Add entrypoint.sh that generates config.js and dynamic nginx config at container startup
+- Frontend now reads ROOT_PATH and VITE_API_URL at runtime via window.__AFFINITIES_CONFIG__
+- Docker Compose passes environment variables instead of build args
+
 ### Added
 - API tutorial Jupyter Notebook (docs/api_tutorial_v0.1.1.ipynb)
 
@@ -37,7 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.0.0...v0.1.0
 [0.0.0]: https://github.com/sci-ndp/ndp-affinities/releases/tag/v0.0.0
