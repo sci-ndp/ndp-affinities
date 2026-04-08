@@ -54,15 +54,15 @@ server {
     location ${LOCATION_PATH}/ {
         alias /usr/share/nginx/html/;
         try_files \$uri \$uri/ ${LOCATION_PATH}/index.html;
+
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
     }
 
     location = ${LOCATION_PATH} {
         return 301 \$scheme://\$host${LOCATION_PATH}/;
-    }
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
     }
 }
 NGINX
