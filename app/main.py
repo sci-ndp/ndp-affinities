@@ -20,8 +20,8 @@ from app.routers import (
 app = FastAPI(
     title="NDP Affinities API",
     description="API for managing NDP affinities data",
-    version="0.2.0",
-    root_path="/affinity-api",
+    version="0.3.0",
+    root_path=settings.root_path,
 )
 app.add_middleware(
     CORSMiddleware,
