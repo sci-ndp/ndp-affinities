@@ -21,7 +21,7 @@ app = FastAPI(
     title="NDP Affinities API",
     description="API for managing NDP affinities data",
     version="0.2.0",
-    root_path="/affinity-api",
+    root_path=settings.root_path,
 )
 app.add_middleware(
     CORSMiddleware,

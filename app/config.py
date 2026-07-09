@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "postgresql://affinities:affinities@localhost:5432/affinities"
     cors_origins: str = "*"
+    root_path: str = ""
 
     class Config:
         env_file = ".env"
