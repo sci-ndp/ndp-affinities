@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-09
+
+### Changed
+- API root path is now read from the `ROOT_PATH` environment variable instead of being hardcoded to `/affinity-api`, so the same image can be served under any prefix behind a reverse proxy (defaults to no prefix)
+- Docker Compose passes `ROOT_PATH` through to the API service
+
 ## [0.2.0] - 2026-04-08
 
 ### Changed
@@ -45,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.0.0...v0.1.0
