@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-08
+
+### Fixed
+- The API did not start from a fresh build (#54). `requirements.txt` installs `psycopg2-binary` and allows any SQLAlchemy 2.x, and SQLAlchemy 2.1 changed the driver a plain `postgresql://` URL selects from psycopg2 to psycopg 3, which is not installed. Every `DATABASE_URL` in the repository is a plain `postgresql://` URL, so a build made after 2.1 was released crashed at start with `No module named 'psycopg'` — `docker compose up --build` and the all-in-one image alike; the test suite could not even be collected. The engine now names `postgresql+psycopg2` when the URL names no driver, so existing `DATABASE_URL` values keep working with any SQLAlchemy version. Verified: with `docker compose up --build` and with the all-in-one image, the API starts and stores data; the all-in-one image built from the previous code never answers on `/api/`.
+
 ## [0.3.0] - 2026-07-09
 
 ### Changed
