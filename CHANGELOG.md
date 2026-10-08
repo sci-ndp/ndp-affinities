@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The Docker image is published from CI (#56). `.github/workflows/docker-publish.yml` runs on a `v*` tag, or by hand for an existing tag: it checks the tag against the version in `app/main.py`, takes the release notes from this file, builds `Dockerfile.allinone`, pushes `rbardaji/ndp-affinities:<version>` and `latest` (never `latest` for a prerelease), starts the pushed image to confirm `/api/health` and the UI answer, and only then creates or updates the GitHub release. It needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets. Until now the image was pushed by hand, and Docker Hub had stopped at 0.2.0.
+
 ## [0.3.1] - 2026-10-08
 
 ### Fixed
