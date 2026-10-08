@@ -1,0 +1,169 @@
+name: Publish Docker image
+
+# Same shape as ep-api and ndp-federation: the GitHub release is the last
+# step, so a release never exists without its image. The image used to be
+# pushed by hand and fell two releases behind (issue #56).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build and push, e.g. 0.3.1'
+        required: true
+      update_latest:
+        description: 'Also move the latest tag'
+        type: boolean
+        default: true
+
+env:
+  IMAGE: rbardaji/ndp-affinities
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A manual run publishes the tag it names, not whatever main holds.
+          ref: ${{ github.event_name == 'push' && github.ref || format('refs/tags/v{0}', inputs.version) }}
+
+      - name: Resolve the version and the tags to push
+        id: meta
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_LATEST: ${{ inputs.update_latest }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            raw="$GITHUB_REF_NAME"
+            latest=true
+          else
+            raw="$INPUT_VERSION"
+            latest="$INPUT_LATEST"
+          fi
+          version="${raw#v}"
+          # A prerelease (0.4.0-rc1) must never move latest.
+          prerelease=false
+          case "$version" in
+            *-*) prerelease=true; latest=false ;;
+          esac
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          {
+            echo 'tags<<TAGS_EOF'
+            echo "${IMAGE}:${version}"
+            if [ "$latest" = "true" ]; then
+              echo "${IMAGE}:latest"
+            fi
+            echo 'TAGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Fail if the tag and app/main.py disagree
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+          declared = re.search(r'version="([^"]+)"', open("app/main.py").read()).group(1)
+          if declared != os.environ["VERSION"]:
+              sys.exit(f"tag {os.environ['VERSION']} != app/main.py version {declared}")
+          print(f"Tag and app/main.py agree on {declared}.")
+          PY
+
+      - name: Read the release notes from the CHANGELOG
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - > release-notes.md <<'PY'
+          import os, re, sys
+          text = open("CHANGELOG.md").read()
+          version = re.escape(os.environ["VERSION"])
+          match = re.search(rf"^## \[{version}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.S | re.M)
+          if not match or not match.group(1).strip():
+              sys.exit(f"CHANGELOG.md has no section for {os.environ['VERSION']}")
+          print(match.group(1).strip())
+          PY
+          cat release-notes.md
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.allinone
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Start what was just pushed: an image that builds is not necessarily one
+      # that runs — #54 built cleanly and then failed at startup.
+      - name: Published image starts and serves the API and the UI
+        run: |
+          set -euo pipefail
+          docker run -d --name release-check -p 8080:80 \
+            "${IMAGE}:${{ steps.meta.outputs.version }}"
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$i" = "45" ]; then
+              echo "::error::Published image did not serve /api/health"
+              docker logs release-check
+              exit 1
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8080/api/health
+          echo
+          curl -fsS -o /dev/null http://127.0.0.1:8080/ && echo "UI is served"
+
+      - name: Clean up the verification container
+        if: always()
+        run: docker rm -f release-check || true
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-notes.md \
+              --prerelease="$PRERELEASE" --draft=false
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" --notes-file release-notes.md \
+              --prerelease="$PRERELEASE"
+          fi
+
+      - name: Summarise what was published
+        run: |
+          {
+            echo "### Published ${{ steps.meta.outputs.tag }}"
+            echo ''
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
