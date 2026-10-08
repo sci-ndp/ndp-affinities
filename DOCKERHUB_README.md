@@ -1,71 +1,55 @@
 # NDP Affinities
 
-All-in-one Docker image for the NDP Affinities system: PostgreSQL + FastAPI backend + React frontend, served via nginx.
-
-## Quick Start
-
-```bash
-docker run -d -p 80:80 -v affinities-data:/var/lib/postgresql/data rbardaji/ndp-affinities
-```
-
-The application will be available at `http://localhost`.
-
-### Custom Configuration
+All-in-one image of NDP Affinities, the National Data Platform registry of Endpoints,
+datasets, services, their links and affinity triples. One container runs PostgreSQL 17,
+the FastAPI API (uvicorn) and nginx, managed by supervisord.
 
 ```bash
-docker run -d -p 80:80 \
-  -e POSTGRES_USER=myuser \
-  -e POSTGRES_PASSWORD=mysecretpass \
-  -e POSTGRES_DB=mydb \
+docker run -d --name affinities -p 80:80 \
+  -e ROOT_PATH=/api \
   -v affinities-data:/var/lib/postgresql/data \
-  rbardaji/ndp-affinities
+  rbardaji/ndp-affinities:<version>
 ```
 
-## Routes
+| URL | What |
+|-----|------|
+| `http://localhost/` | Web UI |
+| `http://localhost/api/` | REST API (nginx strips `/api/`) |
+| `http://localhost/api/docs` | Swagger UI |
+| `http://localhost/api/health` | Health check, returns `{"status":"ok"}` |
 
-| Path | Description |
-|------|-------------|
-| `/` | Web UI (React frontend) |
-| `/api/` | REST API |
-| `/api/docs` | Swagger API documentation |
-| `/api/health` | Health check |
+## Port and volume
 
-## Environment Variables
+- Port `80` (nginx). PostgreSQL and uvicorn are not exposed.
+- Volume `/var/lib/postgresql/data`. On the first start with an empty volume the image
+  creates the database and applies the SQL migrations; later starts reuse it as is.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_USER` | `affinities` | Database user |
-| `POSTGRES_PASSWORD` | `affinities` | Database password |
+## Environment variables
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `POSTGRES_USER` | `affinities` | Database role, created on first start |
+| `POSTGRES_PASSWORD` | `affinities` | Its password |
 | `POSTGRES_DB` | `affinities` | Database name |
+| `ROOT_PATH` | empty | Set to `/api` so that `/api/docs` loads its OpenAPI document from `/api/openapi.json` |
+| `CORS_ORIGINS` | `*` | Allowed origins, comma-separated, or `*` |
 
-## API Examples
+The `POSTGRES_*` values are applied when the volume is initialised; keep them the same on
+later starts, because the API connects with them.
+
+## Notes
+
+- The API has **no authentication**: anyone who can reach the port can create, change and
+  delete records.
+- The bundled web UI requests its data from `http://localhost:8000`, not from `/api`
+  (no runtime `config.js` is generated in this image). Use the API under `/api/` directly.
+- Images up to 0.2.0 predate the configurable `ROOT_PATH` (0.3.0) and the psycopg2
+  driver fix (0.3.1). Images are published from GitHub Actions on version tags.
 
 ```bash
-# List endpoints
 curl http://localhost/api/ep
-
-# Create an endpoint
-curl -X POST http://localhost/api/ep \
-  -H "Content-Type: application/json" \
-  -d '{"kind": "ckan", "url": "http://example.com"}'
-
-# List datasets
-curl http://localhost/api/datasets
-
-# Create an affinity triple
-curl -X POST http://localhost/api/affinities \
-  -H "Content-Type: application/json" \
-  -d '{"dataset_uid": "<uuid>", "endpoint_uids": ["<uuid>"], "service_uids": ["<uuid>"]}'
+curl -X POST http://localhost/api/ep -H "Content-Type: application/json" \
+  -d '{"kind": "ckan", "url": "https://demo.ckan.org"}'
 ```
 
-## Features
-
-- **Endpoints** — Register and manage API/CKAN endpoints
-- **Datasets** — Track data resources with metadata
-- **Services** — Manage OpenAPI services
-- **Affinity Triples** — Link datasets to endpoints and services
-- **Relationship Queries** — Find related entities via `/api/linked/{uid}`
-
-## Source Code
-
-GitHub: [https://github.com/sci-ndp/ndp-affinities](https://github.com/sci-ndp/ndp-affinities)
+Source and documentation: https://github.com/sci-ndp/ndp-affinities
