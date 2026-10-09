@@ -52,6 +52,18 @@ if [ ! -f "$PGDATA/PG_VERSION" ]; then
     echo "PostgreSQL initialized successfully"
 fi
 
+# Runtime configuration for the web UI. The UI reads the API address from
+# config.js, which only frontend/entrypoint.sh wrote, for the UI-only image;
+# without it the UI here called http://localhost:8000 instead of the API this
+# image serves at /api (issue #60).
+UI_DIR="${UI_DIR:-/usr/share/nginx/html}"
+cat > "$UI_DIR/config.js" <<'EOF_CONFIG'
+window.__AFFINITIES_CONFIG__ = {
+  rootPath: "/",
+  apiUrl: "/api"
+};
+EOF_CONFIG
+
 # Set DATABASE_URL for uvicorn
 export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
 

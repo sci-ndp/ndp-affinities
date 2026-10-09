@@ -298,7 +298,9 @@ working directory if one exists. Unknown keys in that `.env` file are rejected a
 | `ROOT_PATH` | empty | FastAPI `root_path`: the prefix a reverse proxy publishes the API under |
 
 The web UI reads `window.__AFFINITIES_CONFIG__` (`rootPath`, `apiUrl`) from `config.js`,
-written by `frontend/entrypoint.sh` from `ROOT_PATH` and `VITE_API_URL`. Without it the UI
+written by `frontend/entrypoint.sh` from `ROOT_PATH` and `VITE_API_URL` in the UI-only
+image, and by `deploy/entrypoint.sh` (base path `/`, API `/api`) in the all-in-one image.
+Without it the UI
 uses base path `/` and API URL `http://localhost:8000`. Deployment variables are listed in
 the [README](../README.md).
 
@@ -327,8 +329,7 @@ container :80
 `deploy/entrypoint.sh` initialises the cluster on the first start (see the README), exports
 `DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DB` and starts supervisord
 (`deploy/supervisord.conf`), which starts PostgreSQL, nginx and uvicorn and restarts them
-if they exit. The UI in this image has no generated `config.js`, so it calls
-`http://localhost:8000` (see the README).
+if they exit. Before that it writes the UI's `config.js` with API URL `/api` (since 0.3.2).
 
 ## How other NDP components use Affinities
 

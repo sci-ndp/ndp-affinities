@@ -41,8 +41,8 @@ later starts, because the API connects with them.
 
 - The API has **no authentication**: anyone who can reach the port can create, change and
   delete records.
-- The bundled web UI requests its data from `http://localhost:8000`, not from `/api`
-  (no runtime `config.js` is generated in this image). Use the API under `/api/` directly.
+- The bundled web UI calls the bundled API under `/api` (since 0.3.2; up to 0.3.1 it
+  called `http://localhost:8000` instead).
 - Images up to 0.2.0 predate the configurable `ROOT_PATH` (0.3.0) and the psycopg2
   driver fix (0.3.1). Images are published from GitHub Actions on version tags.
 
