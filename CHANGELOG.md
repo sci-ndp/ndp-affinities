@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-09
+
+### Fixed
+- **The all-in-one image's web UI did not use its own API.** The UI reads the API address from `config.js`, which only `frontend/entrypoint.sh` (the UI-only image) wrote. The all-in-one image had none (`/config.js` answered 404), so its UI called `http://localhost:8000` on the viewer's own machine instead of the API it serves at `/api`. `deploy/entrypoint.sh` now writes `config.js` with base path `/` and API URL `/api` on every start. New tests in `tests/test_allinone_ui_config.py`. Verified by building the image from 0.3.1 and from this change, adding a different endpoint to each and opening the Endpoints page in a headless browser: the 0.3.1 UI showed another Affinities' data (the one on port 8000 of the same machine) and its `/config.js` answered 404; this one answered 200 and showed its own endpoint (#60).
+
 ### Changed
 - Documentation brought in line with the code (#58): README, Docker Hub README and `.env.example` corrected; `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` and `docs/README.md` added; the API tutorial notebook renamed to `docs/api_tutorial.ipynb` and updated (it used `PATCH`, which the API does not have); `TODO.md` removed.
 
@@ -62,7 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.1...v0.2.0

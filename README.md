@@ -146,11 +146,9 @@ On first start (no `PG_VERSION` in the volume) `deploy/entrypoint.sh` runs `init
 creates the role and database, and applies every `sql/migrations/*.sql` file in order.
 Later starts skip all of that, so new migrations are not applied to an existing volume.
 
-The web UI in this image requests its data from `http://localhost:8000`, not from `/api`:
-`index.html` loads `/config.js`, but nothing in this image generates it (only
-`frontend/entrypoint.sh` does), so the UI falls back to its default API URL. The API
-itself is fully reachable under `/api/`. (Observed with an image built from the 0.3.1
-code.)
+On every start `deploy/entrypoint.sh` also writes the web UI's `config.js`, pointing it
+at this image's API under `/api` (since 0.3.2; before, the image had no `config.js` and the
+UI called `http://localhost:8000` instead).
 
 ## Demo data
 
