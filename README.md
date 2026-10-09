@@ -1,338 +1,227 @@
 # NDP Affinities
 
-PostgreSQL database with FastAPI backend and React frontend for the NDP Affinities system.
+NDP Affinities is the registry of the National Data Platform that records which
+NDP Endpoints exist, which datasets and services they hold, how those are linked,
+and "affinity triples" that group a dataset with endpoints and services. It is a
+FastAPI + SQLAlchemy API on PostgreSQL with a React (Vite) web UI.
 
-## Requirements
+Current version: **0.3.1** (declared in `app/main.py`; see [CHANGELOG.md](CHANGELOG.md)).
 
-- Docker
-- Docker Compose
+Who writes to it:
 
-## Quick Start
+- the **NDP Federation** registers every new NDP Endpoint with `POST /ep`;
+- each **NDP Endpoint (ep-api)** with `AFFINITIES_ENABLED=true` registers its datasets
+  and services and links them to itself.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data model, every route and
+the integrations, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for tests,
+migrations and releases. [docs/README.md](docs/README.md) indexes all documents.
+
+> **The API has no authentication.** Every route, including create, update and
+> delete, is open to anyone who can reach the port. Restrict access at the network
+> or reverse-proxy level.
+
+## Quick start with Docker Compose
+
+Requirements: Docker with the Compose plugin.
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-This will start:
-- **PostgreSQL** on `localhost:5432`
-- **pgAdmin** on `http://localhost:5050`
-- **API** on `http://localhost:8000` (Swagger UI at `/docs`)
-- **Frontend** on `http://localhost:3000`
+| Service | Container | URL |
+|---------|-----------|-----|
+| PostgreSQL 16 | `ndp-affinities-db` | `localhost:5432` |
+| pgAdmin | `ndp-affinities-pgadmin` | http://localhost:5050 |
+| API | `ndp-affinities-api` | http://localhost:8000 (Swagger UI at http://localhost:8000/docs) |
+| Web UI | `ndp-affinities-frontend` | http://localhost:3000 |
 
-Migrations run automatically on first startup.
+The database schema is created from `sql/migrations/*.sql`, which Compose mounts into
+the PostgreSQL container's `/docker-entrypoint-initdb.d`. PostgreSQL runs those files
+**only when the data volume is empty** (first start). Migrations added later are not
+applied to an existing volume; see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#migrations).
 
-## Environment Variables
-
-Copy `.env.example` to `.env` to customize:
+Check that it works:
 
 ```bash
-cp .env.example .env
+curl http://localhost:8000/health          # {"status":"ok"}
+curl -X POST http://localhost:8000/ep \
+  -H "Content-Type: application/json" \
+  -d '{"kind": "ckan", "url": "https://demo.ckan.org"}'
+curl http://localhost:8000/ep
 ```
 
-### PostgreSQL
+Use paths without a trailing slash: `/ep/` answers with a redirect to `/ep`.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_USER` | `affinities` | Database user |
-| `POSTGRES_PASSWORD` | `affinities` | Database password |
-| `POSTGRES_DB` | `affinities` | Database name |
-| `POSTGRES_PORT` | `5432` | Exposed port |
+### Configuration (`docker-compose.yml`)
 
-### pgAdmin
+Compose reads an optional `.env` file next to `docker-compose.yml`
+(`cp .env.example .env`). Every variable has a default.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PGADMIN_EMAIL` | `admin@admin.com` | Login email |
-| `PGADMIN_PASSWORD` | `admin` | Login password |
-| `PGADMIN_PORT` | `5050` | Exposed port |
+| Variable | Default | Used by | Meaning |
+|----------|---------|---------|---------|
+| `POSTGRES_USER` | `affinities` | postgres, api | Database user (also builds the API's `DATABASE_URL`) |
+| `POSTGRES_PASSWORD` | `affinities` | postgres, api | Database password |
+| `POSTGRES_DB` | `affinities` | postgres, api | Database name |
+| `POSTGRES_PORT` | `5432` | postgres | Host port |
+| `PGADMIN_EMAIL` | `admin@admin.com` | pgadmin | pgAdmin login |
+| `PGADMIN_PASSWORD` | `admin` | pgadmin | pgAdmin password |
+| `PGADMIN_PORT` | `5050` | pgadmin | Host port |
+| `API_PORT` | `8000` | api | Host port |
+| `CORS_ORIGINS` | `*` | api | Allowed origins, comma-separated, or `*` |
+| `ROOT_PATH` | api: empty, frontend: `/` | api, frontend | Path prefix the services are served under (see below) |
+| `FRONTEND_PORT` | `3000` | frontend | Host port |
+| `VITE_API_URL` | `http://localhost:8000` | frontend | API base URL the browser calls, read at container start |
 
-### API
+The API container's `DATABASE_URL` is built by Compose from the `POSTGRES_*` values
+(`postgresql://USER:PASSWORD@postgres:5432/DB`). A plain `postgresql://` URL is opened
+with psycopg2 (`app/database.py`; fixed in 0.3.1 — before, builds with SQLAlchemy 2.1
+failed at start).
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://affinities:affinities@localhost:5432/affinities` | Database connection string |
-| `API_PORT` | `8000` | Exposed port |
-| `CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated, or `*` for all) |
+`POSTGRES_*` only take effect when the volume is created. To change them later, change
+them inside PostgreSQL or recreate the volume (`docker compose down -v` deletes all data).
 
-### Frontend
+### ROOT_PATH and reverse proxies
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FRONTEND_PORT` | `3000` | Exposed port |
-| `VITE_API_URL` | `http://localhost:8000` | API URL (used at build time) |
-| `VITE_BASE_PATH` | `/` | Frontend base path (e.g., `/affinity/` when hosted on a subpath) |
+- **API**: `ROOT_PATH` is passed to FastAPI as `root_path` (`app/config.py`). The API
+  still answers on `/` inside the container; the prefix is used for generated URLs,
+  such as the OpenAPI URL that `/docs` loads. Set it to the prefix under which a
+  reverse proxy publishes the API (the proxy must strip the prefix).
+- **Web UI**: `frontend/entrypoint.sh` writes `config.js`
+  (`window.__AFFINITIES_CONFIG__ = {rootPath, apiUrl}`) at container start, rewrites
+  asset paths in `index.html` and generates an nginx config that serves the UI under
+  `ROOT_PATH`. `VITE_API_URL` becomes `apiUrl`, the base URL of every API call made by
+  the browser. Both are read at runtime; no rebuild is needed.
 
-## Production Deployment
+In `docker-compose.yml` both services read the same `ROOT_PATH` variable, so setting
+it in `.env` prefixes both.
 
-For production, use `docker-compose.prod.yml` which excludes pgAdmin and requires explicit configuration:
+`deploy/nginx/vdc-192-affinity.conf` is the reverse-proxy file of an earlier
+deployment (frontend at `/affinity/`, API at `/affinity-api/`, both prefixes stripped).
+It was written before the runtime `ROOT_PATH` configuration (0.2.0) and is kept as an
+example only.
+
+### Production compose file
+
+`docker-compose.prod.yml` has no pgAdmin, does not publish the PostgreSQL port and has no
+defaults for `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` and `CORS_ORIGINS`.
 
 ```bash
-# Create .env with production values (change passwords!)
-cp .env.example .env
-# Edit .env with secure passwords and proper CORS_ORIGINS
-
-# Start production services
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Production configuration notes:
-- Set strong passwords for `POSTGRES_USER` and `POSTGRES_PASSWORD`
-- Set `CORS_ORIGINS` to your frontend domain (e.g., `https://yourdomain.com`)
-- Set `VITE_API_URL` to your API URL (e.g., `https://api.yourdomain.com`)
-- Set `VITE_BASE_PATH` if hosting under a subpath (e.g., `/affinity/`)
-- Configure a reverse proxy (nginx, traefik) for HTTPS
+As the file stands, it does not pass `ROOT_PATH` to the API, and it passes
+`VITE_API_URL`/`VITE_BASE_PATH` to the frontend as build arguments, which
+`frontend/Dockerfile` does not use. The frontend therefore starts with the entrypoint
+defaults (`ROOT_PATH=/`, `VITE_API_URL=http://localhost:8000`).
 
-### Nginx Reverse Proxy (Subpath Example)
+## All-in-one image
 
-If your app runs on VM `10.244.2.201` and you want:
-
-- Frontend at `https://vdc-192.chpc.utah.edu/affinity/`
-- API at `https://vdc-192.chpc.utah.edu/affinity-api/`
-
-Use `deploy/nginx/vdc-192-affinity.conf` on the reverse-proxy host and set:
+`Dockerfile.allinone` builds one container with PostgreSQL 17, the API (uvicorn on
+`127.0.0.1:8000`) and nginx on port 80, managed by supervisord. It is published to
+Docker Hub as `rbardaji/ndp-affinities` (see [DOCKERHUB_README.md](DOCKERHUB_README.md)).
 
 ```bash
-VITE_BASE_PATH=/affinity/
-VITE_API_URL=/affinity-api
-CORS_ORIGINS=https://vdc-192.chpc.utah.edu
+docker build -f Dockerfile.allinone -t ndp-affinities .
+docker run -d --name affinities -p 80:80 \
+  -e ROOT_PATH=/api \
+  -v affinities-data:/var/lib/postgresql/data \
+  ndp-affinities
 ```
 
-Then rebuild:
+| URL | What |
+|-----|------|
+| http://localhost/ | Web UI |
+| http://localhost/api/... | API (nginx strips `/api/` and proxies to uvicorn) |
+| http://localhost/api/docs | Swagger UI |
+| http://localhost/api/health | Health check |
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `affinities` | Used on first start to create the role and database, and to build `DATABASE_URL` on every start |
+| `ROOT_PATH` | empty | Set to `/api` so that `/api/docs` loads `/api/openapi.json`; without it Swagger requests `/openapi.json`, which nginx answers with the UI page |
+| `CORS_ORIGINS` | `*` | As above |
+
+On first start (no `PG_VERSION` in the volume) `deploy/entrypoint.sh` runs `initdb`,
+creates the role and database, and applies every `sql/migrations/*.sql` file in order.
+Later starts skip all of that, so new migrations are not applied to an existing volume.
+
+The web UI in this image requests its data from `http://localhost:8000`, not from `/api`:
+`index.html` loads `/config.js`, but nothing in this image generates it (only
+`frontend/entrypoint.sh` does), so the UI falls back to its default API URL. The API
+itself is fully reachable under `/api/`. (Observed with an image built from the 0.3.1
+code.)
+
+## Demo data
+
+Two seeders write directly to the database through `DATABASE_URL` (they do not call the
+API). Each marks its rows with a `source_ep` value, and `--reset` deletes the rows carrying
+that marker before inserting.
 
 ```bash
-docker compose up -d --build frontend api
+# Small connected demo set (source_ep "demo-seed-ui-v1")
+docker compose exec api python -m app.seed_demo_data [--reset]
+
+# Larger synthetic graph (source_ep "demo-seed-power-v1")
+docker compose exec api python -m app.seed_power_demo_data \
+  [--reset] [--datasets 30] [--services 18] [--endpoints 20] [--seed 20260209]
 ```
 
-## Local Development
+`app/seed.py` is an identical copy of `app/seed_power_demo_data.py`.
 
-### API
+## Local development and tests
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## Running Tests
-
-```bash
 .venv/bin/pytest --cov=app --cov-report=term-missing
 ```
 
-## Accessing pgAdmin
+Tests use an in-memory SQLite database and need no running services. Running the API or
+the web UI outside Docker, migrations and the release procedure are in
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-1. Open http://localhost:5050
-2. Login with `admin@admin.com` / `admin` (or your `.env` values)
-3. The server "affinities" is pre-configured
-4. Enter the database password when prompted: `affinities` (or your `.env` value)
+## pgAdmin
 
-> **Note:** If you change `POSTGRES_USER`, `POSTGRES_DB`, or `POSTGRES_PASSWORD` in `.env`, you must also update `pgadmin/servers.json` to match.
+Open http://localhost:5050 and log in with `PGADMIN_EMAIL` / `PGADMIN_PASSWORD`. The server
+"affinities" is preconfigured from `pgadmin/servers.json` (host `postgres`, user and
+maintenance database `affinities`); enter `POSTGRES_PASSWORD` when asked. If you change
+`POSTGRES_USER` or `POSTGRES_DB`, edit `pgadmin/servers.json` to match.
 
-## Commands
+## Useful commands
 
 ```bash
-# Start services (development)
-docker compose up -d
-
-# Start services (production)
-docker compose -f docker-compose.prod.yml up -d
-
-# Stop services
-docker compose down
-
-# Stop and remove volumes (deletes all data)
-docker compose down -v
-
-# View logs
-docker compose logs -f
-
-# Connect to PostgreSQL directly
+docker compose logs -f api
+docker compose down          # stop, keep data
+docker compose down -v       # stop and delete all data
 docker exec -it ndp-affinities-db psql -U affinities -d affinities
 ```
 
-## Database Schema
-
-### ndp_endpoint
-
-Stores endpoint information.
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `uid` | UUID | PK, auto-generated |
-| `kind` | TEXT | NOT NULL |
-| `url` | TEXT | |
-| `source_ep` | TEXT | |
-| `metadata` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
-
-### ndp_dataset
-
-Stores dataset information.
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `uid` | UUID | PK, auto-generated |
-| `title` | TEXT | |
-| `source_ep` | TEXT | |
-| `metadata` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
-
-### ndp_service
-
-Stores service information.
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `uid` | UUID | PK, auto-generated |
-| `type` | TEXT | |
-| `openapi_url` | TEXT | |
-| `version` | TEXT | |
-| `source_ep` | TEXT | |
-| `metadata` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
-
-### ndp_dataset_endpoint
-
-Junction table connecting datasets with endpoints (many-to-many).
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `dataset_uid` | UUID | PK, FK → ndp_dataset |
-| `endpoint_uid` | UUID | PK, FK → ndp_endpoint |
-| `role` | TEXT | |
-| `attrs` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-
-### ndp_dataset_service
-
-Junction table connecting datasets with services (many-to-many).
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `dataset_uid` | UUID | PK, FK → ndp_dataset |
-| `service_uid` | UUID | PK, FK → ndp_service |
-| `role` | TEXT | |
-| `attrs` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-
-### ndp_service_endpoint
-
-Junction table connecting services with endpoints (many-to-many).
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `service_uid` | UUID | PK, FK → ndp_service |
-| `endpoint_uid` | UUID | PK, FK → ndp_endpoint |
-| `role` | TEXT | |
-| `attrs` | JSONB | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-
-### ndp_affinity_triple
-
-Stores affinity combinations (dataset + endpoints + services).
-
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `triple_uid` | UUID | PK, auto-generated |
-| `dataset_uid` | UUID | FK → ndp_dataset |
-| `endpoint_uids` | UUID[] | array |
-| `service_uids` | UUID[] | array |
-| `attrs` | JSONB | |
-| `version` | INT | |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto-generated |
-| `updated_at` | TIMESTAMPTZ | NOT NULL, auto-updated on modify |
-
-## Project Structure
+## Repository layout
 
 ```
-.
-├── docker-compose.yml        # Development setup
-├── docker-compose.prod.yml   # Production setup (no pgAdmin)
-├── Dockerfile                # API container
-├── requirements.txt
-├── .env.example
-├── app/                      # FastAPI application
-│   ├── main.py
-│   ├── config.py
-│   ├── database.py
-│   ├── types.py
-│   ├── models/
-│   ├── schemas/
-│   └── routers/
-├── frontend/                 # React frontend
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── types/
-│   └── ...
-├── tests/                    # Test suite
-├── pgadmin/
-│   └── servers.json
-└── sql/
-    └── migrations/
+app/                    FastAPI application
+  main.py               app, version, CORS, error handler, /health
+  config.py             settings (DATABASE_URL, CORS_ORIGINS, ROOT_PATH)
+  database.py           engine and session
+  types.py              UUID, UUID-array and JSON column types (PostgreSQL and SQLite)
+  models/ schemas/ routers/
+  seed_demo_data.py     demo seeder
+  seed_power_demo_data.py, seed.py   synthetic-graph seeder
+sql/migrations/         numbered SQL files that create the schema
+frontend/               React + Vite web UI, its Dockerfile, nginx config and entrypoint
+deploy/                 all-in-one entrypoint, nginx and supervisord configs; nginx example
+tests/                  pytest suite
+pgadmin/servers.json    pgAdmin server definition
+docs/                   architecture, development guide, API tutorial notebook
+Dockerfile              API image (Python 3.12)
+Dockerfile.allinone     all-in-one image
+docker-compose.yml      development stack (with pgAdmin)
+docker-compose.prod.yml production stack (without pgAdmin)
+.github/workflows/docker-publish.yml   builds and publishes the all-in-one image on v* tags
 ```
 
-## All-in-One Docker Image
+## Related projects
 
-Single container with PostgreSQL + API + Frontend.
-
-### Quick Start
-
-```bash
-docker run -d -p 80:80 -v affinities-data:/var/lib/postgresql/data rbardaji/ndp-affinities
-```
-
-### Custom Configuration
-
-```bash
-docker run -d -p 80:80 \
-  -e POSTGRES_USER=myuser \
-  -e POSTGRES_PASSWORD=mysecretpass \
-  -e POSTGRES_DB=mydb \
-  -v affinities-data:/var/lib/postgresql/data \
-  rbardaji/ndp-affinities
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_USER` | `affinities` | Database user |
-| `POSTGRES_PASSWORD` | `affinities` | Database password |
-| `POSTGRES_DB` | `affinities` | Database name |
-
-### Access
-
-- **Frontend:** http://localhost
-- **API:** http://localhost/api/
-- **API Docs:** http://localhost/api/docs
-- **Health:** http://localhost/api/health
-
-### API Examples
-
-```bash
-# List endpoints
-curl http://localhost/api/ep
-
-# Create endpoint
-curl -X POST http://localhost/api/ep \
-  -H "Content-Type: application/json" \
-  -d '{"kind": "ckan", "url": "http://example.com"}'
-
-# Get datasets
-curl http://localhost/api/datasets
-```
+- NDP Endpoint (ep-api): https://github.com/national-data-platform/ep-api
+- NDP Federation: https://github.com/sci-ndp/ndp-federation

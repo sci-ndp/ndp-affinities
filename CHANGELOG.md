@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Documentation brought in line with the code (#58): README, Docker Hub README and `.env.example` corrected; `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` and `docs/README.md` added; the API tutorial notebook renamed to `docs/api_tutorial.ipynb` and updated (it used `PATCH`, which the API does not have); `TODO.md` removed.
+
 ### Added
 - The Docker image is published from CI (#56). `.github/workflows/docker-publish.yml` runs on a `v*` tag, or by hand for an existing tag: it checks the tag against the version in `app/main.py`, takes the release notes from this file, builds `Dockerfile.allinone`, pushes `rbardaji/ndp-affinities:<version>` and `latest` (never `latest` for a prerelease), starts the pushed image to confirm `/api/health` and the UI answer, and only then creates or updates the GitHub release. It needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets. Until now the image was pushed by hand, and Docker Hub had stopped at 0.2.0.
 
@@ -59,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.1.0...v0.1.1
