@@ -110,10 +110,11 @@ defaults for `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` and `CORS_ORIGI
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-As the file stands, it does not pass `ROOT_PATH` to the API, and it passes
-`VITE_API_URL`/`VITE_BASE_PATH` to the frontend as build arguments, which
-`frontend/Dockerfile` does not use. The frontend therefore starts with the entrypoint
-defaults (`ROOT_PATH=/`, `VITE_API_URL=http://localhost:8000`).
+It passes `ROOT_PATH` to the API and `ROOT_PATH` and `VITE_API_URL` to the frontend at
+container start, as `docker-compose.yml` does (defaults: empty and `/`, and
+`http://localhost:8000`). Up to 0.3.3 it gave the API no `ROOT_PATH` and passed the
+frontend's settings as build arguments that `frontend/Dockerfile` ignores, so the UI
+always started with the defaults.
 
 ## All-in-one image
 
