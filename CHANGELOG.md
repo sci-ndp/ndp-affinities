@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-10
+
+### Fixed
+- **In the all-in-one image `/api/docs` did not load and redirects lost `/api`.** nginx serves the API under `/api` but stripped the prefix before proxying, and the API ran with an empty `ROOT_PATH`, so FastAPI built every URL without `/api`: Swagger at `/api/docs` requested `/openapi.json`, which nginx answered with the UI page (#61), and the redirect for a trailing slash (`/api/ep/`) pointed at `http://localhost/ep`, without the prefix or the port (#63). nginx now forwards the full path and `Host $http_host`, and uvicorn runs with `ROOT_PATH=/api` (set in `deploy/supervisord.conf`, so `-e ROOT_PATH` is no longer needed or used in this image). New tests in `tests/test_allinone_api_prefix.py`. Verified with images built from 0.3.2 and from this change on port 8172: `/api/docs` now points at `/api/openapi.json`, which answers JSON (before: `/openapi.json`, the UI page); `/api/ep/` now redirects to `http://localhost:8172/api/ep`, which answers (before: `http://localhost/ep`); the API, `/api/health`, `config.js` and the UI, which still lists the data, answer as before.
+
 ## [0.3.2] - 2026-10-09
 
 ### Fixed
@@ -67,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sci-ndp/ndp-affinities/compare/v0.2.0...v0.3.0

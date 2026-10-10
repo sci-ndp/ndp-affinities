@@ -6,7 +6,6 @@ the FastAPI API (uvicorn) and nginx, managed by supervisord.
 
 ```bash
 docker run -d --name affinities -p 80:80 \
-  -e ROOT_PATH=/api \
   -v affinities-data:/var/lib/postgresql/data \
   rbardaji/ndp-affinities:<version>
 ```
@@ -14,7 +13,7 @@ docker run -d --name affinities -p 80:80 \
 | URL | What |
 |-----|------|
 | `http://localhost/` | Web UI |
-| `http://localhost/api/` | REST API (nginx strips `/api/`) |
+| `http://localhost/api/` | REST API |
 | `http://localhost/api/docs` | Swagger UI |
 | `http://localhost/api/health` | Health check, returns `{"status":"ok"}` |
 
@@ -31,8 +30,10 @@ docker run -d --name affinities -p 80:80 \
 | `POSTGRES_USER` | `affinities` | Database role, created on first start |
 | `POSTGRES_PASSWORD` | `affinities` | Its password |
 | `POSTGRES_DB` | `affinities` | Database name |
-| `ROOT_PATH` | empty | Set to `/api` so that `/api/docs` loads its OpenAPI document from `/api/openapi.json` |
 | `CORS_ORIGINS` | `*` | Allowed origins, comma-separated, or `*` |
+
+The API always runs with root path `/api`, where nginx serves it, so Swagger and redirects
+stay under `/api` (since 0.3.3; earlier images needed `-e ROOT_PATH=/api` for Swagger).
 
 The `POSTGRES_*` values are applied when the volume is initialised; keep them the same on
 later starts, because the API connects with them.
