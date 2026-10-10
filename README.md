@@ -124,7 +124,6 @@ Docker Hub as `rbardaji/ndp-affinities` (see [DOCKERHUB_README.md](DOCKERHUB_REA
 ```bash
 docker build -f Dockerfile.allinone -t ndp-affinities .
 docker run -d --name affinities -p 80:80 \
-  -e ROOT_PATH=/api \
   -v affinities-data:/var/lib/postgresql/data \
   ndp-affinities
 ```
@@ -132,15 +131,19 @@ docker run -d --name affinities -p 80:80 \
 | URL | What |
 |-----|------|
 | http://localhost/ | Web UI |
-| http://localhost/api/... | API (nginx strips `/api/` and proxies to uvicorn) |
+| http://localhost/api/... | API (nginx proxies to uvicorn, which runs with root path `/api`) |
 | http://localhost/api/docs | Swagger UI |
 | http://localhost/api/health | Health check |
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `affinities` | Used on first start to create the role and database, and to build `DATABASE_URL` on every start |
-| `ROOT_PATH` | empty | Set to `/api` so that `/api/docs` loads `/api/openapi.json`; without it Swagger requests `/openapi.json`, which nginx answers with the UI page |
 | `CORS_ORIGINS` | `*` | As above |
+
+`ROOT_PATH` is not used in this image: the API always runs with root path `/api`, the
+path nginx serves it under, so `/api/docs` loads `/api/openapi.json` and redirects stay
+under `/api` with the port the client used (since 0.3.3; up to 0.3.2 the container
+needed `-e ROOT_PATH=/api` for Swagger, and its redirects lost `/api` and the port).
 
 On first start (no `PG_VERSION` in the volume) `deploy/entrypoint.sh` runs `initdb`,
 creates the role and database, and applies every `sql/migrations/*.sql` file in order.

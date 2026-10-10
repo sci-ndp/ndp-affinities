@@ -178,7 +178,7 @@ service, after creating the corresponding pairwise link.
 
 All routes are relative to the API root (`http://host:8000` in Compose,
 `http://host/api` in the all-in-one image). The interactive reference is `/docs`
-(Swagger UI) and `/openapi.json`.
+(Swagger UI) and `/openapi.json`, under that root.
 
 ### Entities
 
@@ -321,8 +321,8 @@ supervisor on `python:3.12-slim`.
 container :80
   nginx (deploy/nginx-allinone.conf)
     /        -> /usr/share/nginx/html (UI build, SPA fallback to index.html)
-    /api/    -> http://127.0.0.1:8000/  (prefix stripped)
-  uvicorn app.main:app on 127.0.0.1:8000   (supervisord program "uvicorn")
+    /api/    -> http://127.0.0.1:8000  (full path, Host with its port)
+  uvicorn app.main:app on 127.0.0.1:8000   (supervisord program "uvicorn", ROOT_PATH=/api)
   postgres -D /var/lib/postgresql/data     (supervisord program "postgresql", volume)
 ```
 
@@ -330,6 +330,9 @@ container :80
 `DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/DB` and starts supervisord
 (`deploy/supervisord.conf`), which starts PostgreSQL, nginx and uvicorn and restarts them
 if they exit. Before that it writes the UI's `config.js` with API URL `/api` (since 0.3.2).
+uvicorn runs with `ROOT_PATH=/api` whatever the container was given, so FastAPI strips the
+prefix for routing and keeps it, and the client's port, in `/api/docs` and in redirects
+(since 0.3.3).
 
 ## How other NDP components use Affinities
 
