@@ -17,6 +17,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       CORS_ORIGINS: ${CORS_ORIGINS}
+      ROOT_PATH: ${ROOT_PATH:-}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -26,10 +27,12 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL}
-        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
     container_name: ndp-affinities-frontend
+    # Read at container start by frontend/entrypoint.sh, which writes the UI's
+    # config.js; the image takes no build arguments.
+    environment:
+      ROOT_PATH: ${ROOT_PATH:-/}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:

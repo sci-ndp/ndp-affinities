@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-10
+
+### Fixed
+- **`docker-compose.prod.yml` did not apply `VITE_API_URL` or `ROOT_PATH`.** It passed `VITE_API_URL` and `VITE_BASE_PATH` to the frontend as build arguments, which `frontend/Dockerfile` does not declare, and gave the API no `ROOT_PATH`, so the UI always started pointing at `http://localhost:8000` from `/`. It now passes `ROOT_PATH` to the API, and `ROOT_PATH` and `VITE_API_URL` to the frontend at container start, as `docker-compose.yml` does. New tests in `tests/test_prod_compose.py`. Verified by starting the file from 0.3.3 and from this change with `VITE_API_URL=http://localhost:18300` and `ROOT_PATH=/aff`: before, the UI's `config.js` (at `/config.js`) held `http://localhost:8000` and the API's Swagger loaded `/openapi.json`; now `config.js` is at `/aff/config.js` with `http://localhost:18300`, and Swagger loads `/aff/openapi.json` (#62).
+
 ## [0.3.3] - 2026-10-10
 
 ### Fixed
@@ -72,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pagination support in dashboard
 - CKAN names display in listings
 
-[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.3...HEAD
+[Unreleased]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sci-ndp/ndp-affinities/compare/v0.3.0...v0.3.1
